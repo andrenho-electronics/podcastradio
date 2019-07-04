@@ -11,19 +11,38 @@ Shopping list:
 - Devices
   - ~Raspberry Pi Zero~
   - USB audio card
-  - USB hub
-  - Wi-fi dongle
-  - USB A to micro B
-  - USB A to anything
+  - ~USB A to micro B~
+  - ~USB A to anything~
 - Components
   - ~Power switch~
   - 2 infinite knobs
-  - 4? pushbuttons (or some kind of switch)
   - ~screen~
   - ~status leds~
-  - USB input A
-  - RJ45 input
+  - ~USB input A~
 
 # v2
 
 ![design](v2.jpg)
+
+# Software design:
+
+- Thread based. Threads communicate over synchronized queues.
+- Threads:
+  1. Main thread 
+     - read config file
+     - read input from user
+     - manages everything
+     - check for updates on config file
+     - database module (saved every 5 seconds)
+  2. Screen thread - manages screen and leds
+     - on debugging, draw everything on the screen
+  3. Download thread - download episodes on the background
+  4. Player thread - plays mp3
+- Additional execution: ftp
+- Libraries necessary:
+  - cpptoml
+  - curses (debuggin)
+  - wiringpi (Raspberry Pi)
+  - sqlite
+  - libcurl
+  - fmod
