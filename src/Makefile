@@ -1,5 +1,6 @@
 OBJ = main.o
 
+CPPFLAGS = -I. -std=c++17
 LDFLAGS = -lpthread
 
 all:

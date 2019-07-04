@@ -41,7 +41,7 @@ int main()
     for (;;) {
 
         // read and act on inputs
-        optional<InputEvent> event = input.read();
+        optional<InputEvent> event = input->read();
         if (event.has_value())
             mgr.do_event(*event);
         
