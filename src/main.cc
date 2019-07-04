@@ -17,16 +17,18 @@ using namespace std::chrono;
 
 Config                   cfg;
 Log                      logs;
+/*
 SyncQueue<MainEvent>     main_queue;
 SyncQueue<ScreenEvent>   screen_queue;
 SyncQueue<DownloadEvent> dl_queue;
 SyncQueue<PlayerEvent>   player_queue;
+*/
 
 int main()
 {
     cfg.auto_load_on_change();
 
-    time_point last_update = steady_clock::now();
+    auto last_update = steady_clock::now();
     auto input = Input::create();
     Manager mgr;
 
