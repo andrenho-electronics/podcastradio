@@ -1,0 +1,40 @@
+#!/usr/bin/env python3
+
+import datetime
+import time
+import logging
+
+from config import Config
+from manager import Manager
+import userinput
+import screen
+
+cfg = None
+debug = True
+
+if __name__ == '__main__':
+    # load config
+    cfg = Config()
+    cfg.auto_load_on_change()
+
+    # initialize
+    user_input = userinput.create(debug)
+    mgr = Manager()
+    
+    # initialize threads
+    screen.create(debug).start()
+
+    # main loop
+    next_update = datetime.datetime.now() + datetime.timedelta(seconds=1)
+    while True:
+        # read and act on inputs
+        event = user_input.get_event()
+        if event:
+            mgr.do_event(event)
+
+        # every one second
+        if datetime.datetime.now() > next_update:
+            mgr.save_database()
+            next_update = datetime.datetime.now() + datetime.timedelta(seconds=1)
+
+        time.sleep(0.01)
