@@ -4,6 +4,7 @@ A car radio that plays podcasts, using Raspberry Pi Zero.
 # v1
 
 ![design](v1.jpg)
+(TODO - draw: audio USB dongle, extra pushbuttons?)
 
 Shopping list:
 
@@ -15,7 +16,7 @@ Shopping list:
   - USB A to micro B
   - USB A to anything
 - Components
-  - Power switch
+  - ~Power switch~
   - 2 infinite knobs
   - 4? pushbuttons (or some kind of switch)
   - ~screen~
