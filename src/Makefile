@@ -1,5 +1,11 @@
-OBJ = main.cc
+OBJ = main.o
+
+all:
+	$(error Not implemented.)
 
 debug: CPPFLAGS ?= -DDEBUG -O0 -ggdb
 debug: $(OBJ)
-	$(CXX) -o podcastradio $(OBJ) $(LIBS)
+	$(CXX) -o prdebug $(OBJ) $(LIBS)
+
+clean:
+	rm -f podcastradio prdebug **/*.o
