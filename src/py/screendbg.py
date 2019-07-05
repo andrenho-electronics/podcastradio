@@ -5,8 +5,8 @@ from screen import Screen
 
 class ScreenDebug(Screen, logging.Handler):
     
-    def __init__(self):
-        Screen.__init__(self)
+    def __init__(self, scr_queue):
+        Screen.__init__(self, scr_queue)
         logging.Handler.__init__(self, 'DEBUG')
         self.stdscr = curses.initscr()
         curses.noecho()
@@ -18,12 +18,14 @@ class ScreenDebug(Screen, logging.Handler):
     def get_data(self):
         return self.stdscr
 
-    def run(self):
-        pass
-    
     def emit(self, record):
         self.logs_text.addstr(record.getMessage() + "\n")
         self.logs_text.refresh()
+
+    def print_welcome_message(self):
+        self.screen.addstr(2, 5, "Welcome  to")
+        self.screen.addstr(4, 10, "PODCAST RADIO")
+        self.screen.refresh()
 
     def __del__(self):
         curses.nocbreak()

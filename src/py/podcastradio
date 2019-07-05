@@ -6,31 +6,30 @@ import logging
 
 from config import Config
 from manager import Manager
+from syncqueue import SyncQueue
 import userinput
 import screen
-
-cfg = None
-debug = True
+from screenmsg import ScreenMessage
 
 if __name__ == '__main__':
+    debug = True
+
+    # initialize queues
+    scr_queue = SyncQueue(ScreenMessage)
+    
     # load config
     cfg = Config()
     cfg.auto_load_on_change()
 
     # initialize threads
-    scr = screen.create(debug)
-    if debug:
-        logging.basicConfig(level=logging.DEBUG)
-        logging.getLogger().handlers = []
-        logging.getLogger().addHandler(scr)
-        logging.debug("Screen initialized.")
+    scr = screen.create(debug, scr_queue)
     scr.start()
     #scr.run()
 
     # initialize
     user_input = userinput.create(debug)
-    mgr = Manager()
-    
+    mgr = Manager(scr_queue)
+
     # main loop
     next_update = datetime.datetime.now() + datetime.timedelta(seconds=1)
     while True:
