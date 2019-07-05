@@ -1,11 +1,15 @@
 #ifndef SCREEN_HH_
 #define SCREEN_HH_
 
+#include <memory>
+
 class Screen {
 public:
-    static unique_ptr<Screen> create() { return nullptr; }  // TODO
+    virtual ~Screen() {}
+    static std::unique_ptr<Screen> create();
 
-    virtual void run() = 0;
+    void run() const;
+    virtual void print_welcome_message() const = 0;
 };
 
 #endif

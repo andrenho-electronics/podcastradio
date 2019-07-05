@@ -4,6 +4,8 @@
 #include "input/input.hh"
 
 class InputDebug : public Input {
+public:
+    std::optional<InputEvent> read() const override;
 };
 
 #endif

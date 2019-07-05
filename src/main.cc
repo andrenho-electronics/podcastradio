@@ -1,10 +1,8 @@
-#include <chrono>
 #include <iostream>
 #include <memory>
 #include <optional>
 #include <thread>
 using namespace std;
-using namespace std::chrono;
 
 #include "input/input.hh"
 #include "mgr/manager.hh"
@@ -28,14 +26,15 @@ int main()
 {
     cfg.auto_load_on_change();
 
-    auto last_update = steady_clock::now();
     auto input = Input::create();
     Manager mgr;
 
     // initialize threads
     thread thread_screen([]{ Screen::create()->run(); });
+    /*
     thread thread_download([]{ Download().run(); });
     thread thread_player([]{ Player().run(); });
+    */
 
     // main loop
     for (;;) {
@@ -45,5 +44,6 @@ int main()
         if (event.has_value())
             mgr.do_event(*event);
         
+        this_thread::sleep_for(10ms);
     }
 }

@@ -8,8 +8,8 @@ using namespace std;
 std::unique_ptr<Input>
 Input::create() { 
 #ifdef DEBUG
-    return make_unique<InputDebug>();
+    return std::make_unique<InputDebug>();
 #else
-    return make_unique<InputRPI>();
+    return std::make_unique<InputRPI>();
 #endif
 }
