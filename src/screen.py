@@ -1,7 +1,7 @@
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 import threading
 
-class Screen(threading.Thread):
+class Screen(threading.Thread, ABC):
 
     @abstractmethod
     def run(self):

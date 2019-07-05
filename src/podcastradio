@@ -22,13 +22,14 @@ if __name__ == '__main__':
     mgr = Manager()
     
     # initialize threads
-    screen.create(debug).start()
+    scr = screen.create(debug)
+    scr.start()
 
     # main loop
     next_update = datetime.datetime.now() + datetime.timedelta(seconds=1)
     while True:
         # read and act on inputs
-        event = user_input.get_event()
+        event = user_input.get_event(scr.get_data())
         if event:
             mgr.do_event(event)
 
