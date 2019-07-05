@@ -1,2 +1,2 @@
-*.o
-prdebug
+__pycache__
+*.pyc

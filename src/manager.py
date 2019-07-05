@@ -1,4 +1,6 @@
+import logging
+
 class Manager:
-    
-    def save_database(self):
-        pass
+
+    def __init__(self):
+        logging.debug("Manager initialized.")

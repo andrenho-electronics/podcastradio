@@ -17,14 +17,20 @@ if __name__ == '__main__':
     cfg = Config()
     cfg.auto_load_on_change()
 
+    # initialize threads
+    scr = screen.create(debug)
+    if debug:
+        logging.basicConfig(level=logging.DEBUG)
+        logging.getLogger().handlers = []
+        logging.getLogger().addHandler(scr)
+        logging.debug("Screen initialized.")
+    scr.start()
+    #scr.run()
+
     # initialize
     user_input = userinput.create(debug)
     mgr = Manager()
     
-    # initialize threads
-    scr = screen.create(debug)
-    scr.start()
-
     # main loop
     next_update = datetime.datetime.now() + datetime.timedelta(seconds=1)
     while True:
@@ -33,9 +39,5 @@ if __name__ == '__main__':
         if event:
             mgr.do_event(event)
 
-        # every one second
-        if datetime.datetime.now() > next_update:
-            mgr.save_database()
-            next_update = datetime.datetime.now() + datetime.timedelta(seconds=1)
-
+        # yield to other threads
         time.sleep(0.01)
