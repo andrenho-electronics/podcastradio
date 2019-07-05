@@ -15,9 +15,9 @@ using namespace std;
 
 Config                   cfg;
 Log                      logs;
+SyncQueue<ScreenEvent>   screen_queue;
 /*
 SyncQueue<MainEvent>     main_queue;
-SyncQueue<ScreenEvent>   screen_queue;
 SyncQueue<DownloadEvent> dl_queue;
 SyncQueue<PlayerEvent>   player_queue;
 */
