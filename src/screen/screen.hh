@@ -8,7 +8,7 @@ public:
     virtual ~Screen() {}
     static std::unique_ptr<Screen> create();
 
-    void run() const;
+    void run();
     virtual void print_welcome_message() const = 0;
 };
 

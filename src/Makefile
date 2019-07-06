@@ -1,6 +1,7 @@
 OBJ = main.o 				\
 	  input/input.o 		\
 	  input/input_debug.o	\
+	  mgr/manager.o			\
 	  screen/screen.o		\
 	  screen/screen_debug.o
 

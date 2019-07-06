@@ -5,6 +5,8 @@
 
 class Manager {
 public:
+    Manager();
+
     void do_event(InputEvent event) {}    // TODO
 };
 

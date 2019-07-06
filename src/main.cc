@@ -9,6 +9,7 @@ using namespace std;
 #include "download/download.hh"
 #include "player/player.hh"
 #include "screen/screen.hh"
+#include "screen/screenevent.hh"
 #include "util/config.hh"
 #include "util/log.hh"
 #include "util/syncqueue.hh"

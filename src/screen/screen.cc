@@ -4,6 +4,7 @@
 #include <thread>
 using namespace std;
 
+#include "globals.hh"
 #include "screen/screen_debug.hh"
 
 std::unique_ptr<Screen>
@@ -16,9 +17,10 @@ Screen::create() {
 }
 
 void
-Screen::run() const
+Screen::run()
 {
-    // TODO - execute queue
-    for (;;)
+    for (;;) {
+        screen_queue.execute(*this);
         this_thread::sleep_for(10ms);
+    }
 }
