@@ -14,9 +14,9 @@ using namespace std;
 #include "util/log.hh"
 #include "util/syncqueue.hh"
 
-Config                   cfg;
-Log                      logs;
-SyncQueue<ScreenEvent>   screen_queue;
+Config cfg;
+Log    logs;
+SyncQueue<unique_ptr<ScreenEvent>> screen_queue;
 /*
 SyncQueue<MainEvent>     main_queue;
 SyncQueue<DownloadEvent> dl_queue;

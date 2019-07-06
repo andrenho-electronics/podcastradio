@@ -1,3 +1,4 @@
+#include <memory>
 #include <queue>
 #include <thread>
 #include <mutex>
@@ -13,7 +14,7 @@ public:
         while (queue_.empty()) {
             cond_.wait(mlock);
         }
-        auto item = queue_.front();
+        auto item = move(queue_.front());
         queue_.pop();
         return item;
     }
