@@ -8,5 +8,5 @@ using namespace std;
 
 Manager::Manager()
 {
-    screen_queue.push(make_unique<WelcomeScreen>());
+    screen_queue.push<WelcomeScreen>();
 }
