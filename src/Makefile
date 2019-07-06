@@ -3,7 +3,8 @@ OBJ = main.o 				\
 	  input/input_debug.o	\
 	  mgr/manager.o			\
 	  screen/screen.o		\
-	  screen/screen_debug.o
+	  screen/screen_debug.o	\
+	  util/log.o
 
 LIBS=ncurses
 

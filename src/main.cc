@@ -15,7 +15,6 @@ using namespace std;
 #include "util/syncqueue.hh"
 
 Config                   cfg;
-Log                      logs;
 SyncQueue<ScreenEvent>   screen_queue;
 /*
 SyncQueue<MainEvent>     main_queue;
@@ -25,6 +24,8 @@ SyncQueue<PlayerEvent>   player_queue;
 
 int main()
 {
+    log("Initializing podcastradio...");
+
     cfg.auto_load_on_change();
 
     auto input = Input::create();

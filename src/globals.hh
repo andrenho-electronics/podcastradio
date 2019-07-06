@@ -7,7 +7,6 @@
 #include "util/syncqueue.hh"
 
 extern Config                   cfg;
-extern Log                      logs;
 extern SyncQueue<ScreenEvent>   screen_queue;
 /*
 extern SyncQueue<MainEvent>     main_queue;

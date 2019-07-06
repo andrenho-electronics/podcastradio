@@ -4,6 +4,7 @@
 #include "screen/screen.hh"
 
 #include <memory>
+#include <string>
 
 #include <curses.h>
 
@@ -17,6 +18,7 @@ public:
     ~ScreenDebug();
 
     void print_welcome_message() const override;
+    void print_log_message(std::string text) const override;
 
 private:
     void redraw_everything();

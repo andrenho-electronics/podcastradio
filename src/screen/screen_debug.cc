@@ -1,6 +1,10 @@
 #include "screen/screen_debug.hh"
 
+using namespace std;
+
 #include <curses.h>
+
+#include "util/log.hh"
 
 ScreenDebug::ScreenDebug()
 {
@@ -11,6 +15,8 @@ ScreenDebug::ScreenDebug()
     
     refresh();
     redraw_everything();
+
+    log("Screen initialized.");
 }
 
 ScreenDebug::~ScreenDebug()
@@ -21,11 +27,19 @@ ScreenDebug::~ScreenDebug()
 }
 
 void
+ScreenDebug::print_log_message(string text) const
+{
+    waddstr(logs.get(), (text + "\n").c_str());
+    wrefresh(logs.get());
+}
+
+void
 ScreenDebug::print_welcome_message() const
 {
     mvwaddstr(screen.get(), 2, 5, "Welcome  to");
     mvwaddstr(screen.get(), 4, 10, "PODCAST RADIO");
     wrefresh(screen.get());
+    log("Welcome message printed.");
 }
 
 //----------------------------------------------------
@@ -44,6 +58,9 @@ ScreenDebug::create_windows()
     panel.reset(newwin(16, 40, 0, 0));
     screen.reset(newwin(16, 40, 0, 41));
     logs.reset(newwin(LINES - 17, COLS, 17, 0));
+
+    idlok(logs.get(), true);
+    scrollok(logs.get(), true);
 }
 
 void
