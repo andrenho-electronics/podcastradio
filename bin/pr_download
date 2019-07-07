@@ -4,6 +4,11 @@ import configparser
 import logging
 import sqlite3
 import time
+import urllib.request
+import xml.etree.ElementTree as ET  
+
+
+# CONFIG #######################################################################
 
 class Config:
     def __init__(self):
@@ -17,8 +22,10 @@ def read_config_file():
         cfg.podcasts.append(key)
     return cfg
 
+
+# DATABASE #####################################################################
+
 def open_database():
-    # {{{ nested functions
 
     def create_database_objects(conn):
         conn.cursor().execute('''
@@ -26,7 +33,8 @@ def open_database():
                 url TEXT PRIMARY KEY,
                 title TEXT
             );
-
+        ''')
+        conn.cursor().execute('''
             CREATE TABLE IF NOT EXISTS episodes (
                 podcast_url TEXT,
                 episode_url TEXT,
@@ -38,13 +46,14 @@ def open_database():
             );
         ''')
 
-    # }}}
     conn = sqlite3.connect('podcastradio.db')
     create_database_objects(conn)
     return conn
 
+
+# PODCASTS #####################################################################
+
 def check_podcasts(cfg, db):
-    # {{{ nested functions
 
     def check_config_against_db(cfg, db):
         c = db.cursor()
@@ -60,20 +69,53 @@ def check_podcasts(cfg, db):
         for url in cfg.podcasts:
             if url not in urls_in_db:
                 c.execute('INSERT INTO podcasts (url) VALUES (?)', (url,))
+                urls_in_db.append(url)
                 logging.info('URL ' + url + ' was inserted into database.')
         db.commit()
+        return urls_in_db
 
-    # }}}
-    check_config_against_db(cfg, db)
+    def download_podcast_rss(url):
+        xml = download_file(url)
+        logging.debug("Podcast XML file downloaded from URL " + url)
+        return xml
 
-# }}}
+    def parse_podcast_rss(xml):
+        class PodcastInfo:
+            pass
+        info = PodcastInfo()
+        root = ET.fromstring(xml)
+        info.title = root.find("./channel/title").text
+        # TODO
+        logging.debug("Parsed data from podcast RSS: " + info.title)
+        return info
+
+    def update_podcast_database(db, info):
+        pass
+
+    urls = check_config_against_db(cfg, db)
+    for url in urls:
+        xml = download_podcast_rss(url)
+        info = parse_podcast_rss(xml)
+        update_podcast_database(db, info)
+
+
+# UTIL #########################################################################
+
+def download_file(url):
+    response = urllib.request.urlopen(url)
+    data = response.read()
+    return data.decode('utf-8')
+
+
+# MAIN #########################################################################
 
 if __name__ == '__main__':
     logging.basicConfig(level='DEBUG')
     db = open_database()
     while True:
+        logging.info('Executing loop...')
         cfg = read_config_file()
         check_podcasts(cfg, db)
-        time.sleep(60)
+        time.sleep(120)
 
 # vim: foldmethod=marker
