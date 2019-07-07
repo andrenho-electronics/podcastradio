@@ -23,6 +23,7 @@ def read_config_file():
     for key in config['podcasts']:
         cfg.podcasts.append(key)
     cfg.keep_episodes = int(config['config']['keep_episodes'])
+    cfg.download_path = config['config']['download_path']
     return cfg
 
 
@@ -47,7 +48,7 @@ def open_database():
                 length        TEXT,
                 nbytes        INTEGER,
                 perc_downl    REAL      DEFAULT 0.0,
-                keep          BOOLEAN   DEFAULT 1,
+                keep          BOOLEAN   DEFAULT 0,
                 PRIMARY KEY(podcast_url, episode_url),
                 FOREIGN KEY(podcast_url) REFERENCES podcasts(url)
             );
@@ -132,15 +133,25 @@ def check_podcasts(cfg, db):
 
 def download_episodes(db):
 
-    def remove_old_podcast_episodes(url, db):
-        pass
+    def remove_old_podcast_episodes(url, keep, db):
+        for row in db.cursor().execute('''
+            SELECT rowid, episode_url
+              FROM episodes
+             WHERE podcast_url = ?
+               AND keep = 0
+               AND perc_downl > 0.0
+          ORDER BY date DESC
+             LIMIT -1 OFFSET ?''', (url, keep)):
+            os.remove(cfg.download_path + '/' + row[0])
+            db.cursor.execute('UPDATE episodes SET perc_downl = 0.0 WHERE episode_url = ?', (row[1],))
+        db.commit()
 
     def download_new_podcast_episodes(url, db):
         pass
 
-    for row in db.cursor().execute('SELECT url FROM podcasts'):
+    for row in db.cursor().execute('SELECT url, keep_episodes FROM podcasts'):
         url = row[0]
-        remove_old_podcast_episodes(url, db)
+        remove_old_podcast_episodes(url, row[1], db)
         download_new_podcast_episodes(url, db)
 
 # UTIL #########################################################################
