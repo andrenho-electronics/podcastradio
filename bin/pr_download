@@ -131,9 +131,17 @@ def check_podcasts(cfg, db):
 # EPISODES #####################################################################
 
 def download_episodes(db):
-    # TODO - remove episodes not in the 5 first and not marked as keep
-    # TODO - download episodes
-    pass
+
+    def remove_old_podcast_episodes(url, db):
+        pass
+
+    def download_new_podcast_episodes(url, db):
+        pass
+
+    for row in db.cursor().execute('SELECT url FROM podcasts'):
+        url = row[0]
+        remove_old_podcast_episodes(url, db)
+        download_new_podcast_episodes(url, db)
 
 # UTIL #########################################################################
 
