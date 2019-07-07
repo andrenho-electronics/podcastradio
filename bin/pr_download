@@ -22,6 +22,7 @@ def read_config_file():
     config.read('download.ini')
     for key in config['podcasts']:
         cfg.podcasts.append(key)
+    cfg.keep_episodes = int(config['config']['keep_episodes'])
     return cfg
 
 
@@ -32,17 +33,21 @@ def open_database():
     def create_database_objects(conn):
         conn.cursor().execute('''
             CREATE TABLE IF NOT EXISTS podcasts (
-                url TEXT PRIMARY KEY,
-                title TEXT
+                url           TEXT PRIMARY KEY,
+                title         TEXT,
+                keep_episodes INTEGER   DEFAULT 5
             );
         ''')
         conn.cursor().execute('''
             CREATE TABLE IF NOT EXISTS episodes (
-                podcast_url TEXT,
-                episode_url TEXT,
-                title TEXT,
-                date INTEGER,
-                length TEXT,
+                podcast_url   TEXT,
+                episode_url   TEXT,
+                title         TEXT,
+                date          INTEGER,
+                length        TEXT,
+                nbytes        INTEGER,
+                perc_downl    REAL      DEFAULT 0.0,
+                keep          BOOLEAN   DEFAULT 1,
                 PRIMARY KEY(podcast_url, episode_url),
                 FOREIGN KEY(podcast_url) REFERENCES podcasts(url)
             );
@@ -70,7 +75,8 @@ def check_podcasts(cfg, db):
         # URLs in config but not in db - insert to db
         for url in cfg.podcasts:
             if url not in urls_in_db:
-                c.execute('INSERT INTO podcasts (url) VALUES (?)', (url,))
+                c.execute('INSERT INTO podcasts ( url, keep_episodes ) VALUES ( ?, ? )',
+                        (url, cfg.keep_episodes))
                 urls_in_db.append(url)
                 logging.info('URL ' + url + ' was inserted into database.')
         db.commit()
@@ -100,12 +106,21 @@ def check_podcasts(cfg, db):
             except AttributeError:
                 pass
             info.episodes.append(ep)
-        pprint(vars(info.episodes[0]))
         logging.debug('Parsed data from podcast RSS: ' + info.title)
         return info
 
     def update_podcast_database(url, db, info):
-        pass
+        db.cursor().execute('''
+            UPDATE podcasts
+               SET title = ?
+             WHERE url = ?''', (info.title, url))
+        for ep in info.episodes:
+            db.cursor().execute('''
+                INSERT OR REPLACE INTO episodes ( podcast_url, episode_url, title, date, length )
+                                VALUES ( ?, ?, ?, ?, ? )''',
+                (url, ep.url, ep.title, ep.date, ep.length))
+        db.commit()
+        logging.debug('Tables updated for podcast ' + info.title)
 
     urls = check_config_against_db(cfg, db)
     for url in urls:
@@ -113,6 +128,12 @@ def check_podcasts(cfg, db):
         info = parse_podcast_rss(xml)
         update_podcast_database(url, db, info)
 
+# EPISODES #####################################################################
+
+def download_episodes(db):
+    # TODO - remove episodes not in the 5 first and not marked as keep
+    # TODO - download episodes
+    pass
 
 # UTIL #########################################################################
 
@@ -131,6 +152,7 @@ if __name__ == '__main__':
         logging.info('Executing loop...')
         cfg = read_config_file()
         check_podcasts(cfg, db)
+        download_episodes(db)
         time.sleep(120)
 
 # vim: foldmethod=marker
