@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 
 import configparser
+from email.utils import parsedate_tz
 import logging
+from pprint import pprint
 import sqlite3
 import time
 import urllib.request
@@ -40,7 +42,7 @@ def open_database():
                 episode_url TEXT,
                 title TEXT,
                 date INTEGER,
-                length INTEGER,
+                length TEXT,
                 PRIMARY KEY(podcast_url, episode_url),
                 FOREIGN KEY(podcast_url) REFERENCES podcasts(url)
             );
@@ -76,27 +78,40 @@ def check_podcasts(cfg, db):
 
     def download_podcast_rss(url):
         xml = download_file(url)
-        logging.debug("Podcast XML file downloaded from URL " + url)
+        logging.debug('Podcast XML file downloaded from URL ' + url)
         return xml
 
     def parse_podcast_rss(xml):
         class PodcastInfo:
             pass
+        class Episode:
+            pass
         info = PodcastInfo()
         root = ET.fromstring(xml)
-        info.title = root.find("./channel/title").text
-        # TODO
-        logging.debug("Parsed data from podcast RSS: " + info.title)
+        info.title = root.find('./channel/title').text
+        info.episodes = []
+        for item in root.findall('./channel/item'):
+            ep = Episode()
+            ep.url = item.find('enclosure').attrib['url']
+            ep.title = item.find('title').text
+            ep.date = int(time.mktime(parsedate_tz(item.find('pubDate').text)[0:9]))  # date in unix timestamp format
+            try:
+                ep.length = item.find('{http://www.itunes.com/dtds/podcast-1.0.dtd}duration').text
+            except AttributeError:
+                pass
+            info.episodes.append(ep)
+        pprint(vars(info.episodes[0]))
+        logging.debug('Parsed data from podcast RSS: ' + info.title)
         return info
 
-    def update_podcast_database(db, info):
+    def update_podcast_database(url, db, info):
         pass
 
     urls = check_config_against_db(cfg, db)
     for url in urls:
         xml = download_podcast_rss(url)
         info = parse_podcast_rss(xml)
-        update_podcast_database(db, info)
+        update_podcast_database(url, db, info)
 
 
 # UTIL #########################################################################
