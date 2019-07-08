@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 
 import configparser
-from email.utils import parsedate_tz
 import logging
-from pprint import pprint
 import sqlite3
 import time
 import urllib.request
+import threading
 import xml.etree.ElementTree as ET  
-
+from email.utils import parsedate_tz
+from pprint import pprint
 
 # CONFIG #######################################################################
 
@@ -24,6 +24,7 @@ def read_config_file():
         cfg.podcasts.append(key)
     cfg.keep_episodes = int(config['config']['keep_episodes'])
     cfg.download_path = config['config']['download_path']
+    cfg.download_threads = int(config['config']['download_threads'])
     return cfg
 
 
@@ -47,10 +48,22 @@ def open_database():
                 date          INTEGER,
                 length        TEXT,
                 nbytes        INTEGER,
-                perc_downl    REAL      DEFAULT 0.0,
+                downloaded    BOOLEAN   DEFAULT 0,
                 keep          BOOLEAN   DEFAULT 0,
                 PRIMARY KEY(podcast_url, episode_url),
                 FOREIGN KEY(podcast_url) REFERENCES podcasts(url)
+            );
+        ''')
+        conn.cursor().execute('''
+            CREATE TABLE IF NOT EXISTS downloads (
+                url             TEXT,
+                podcast_title   TEXT,
+                episode_title   TEXT,
+                thread          INTEGER  DEFAULT NULL,
+                episode_size    INTEGER  DEFAULT NULL,
+                bytes_downd     INTEGER  DEFAULT 0,
+                PRIMARY KEY(url),
+                FOREIGN KEY(url) REFERENCES episodes(episode_url)
             );
         ''')
 
@@ -70,7 +83,7 @@ def check_podcasts(cfg, db):
         for row in c.execute('SELECT url FROM podcasts'):
             if row[0] not in cfg.podcasts:
                 c.execute('DELETE FROM podcasts WHERE url=?', (row[0],))
-                logging.info('URL ' + row[0] + ' was deleted from database.')
+                logging.debug('URL ' + row[0] + ' was deleted from database.')
             else:
                 urls_in_db.append(row[0])
         # URLs in config but not in db - insert to db
@@ -79,12 +92,14 @@ def check_podcasts(cfg, db):
                 c.execute('INSERT INTO podcasts ( url, keep_episodes ) VALUES ( ?, ? )',
                         (url, cfg.keep_episodes))
                 urls_in_db.append(url)
-                logging.info('URL ' + url + ' was inserted into database.')
+                logging.debug('URL ' + url + ' was inserted into database.')
         db.commit()
         return urls_in_db
 
     def download_podcast_rss(url):
-        xml = download_file(url)
+        response = urllib.request.urlopen(url)
+        data = response.read()
+        xml = data.decode('utf-8')
         logging.debug('Podcast XML file downloaded from URL ' + url)
         return xml
 
@@ -129,49 +144,81 @@ def check_podcasts(cfg, db):
         info = parse_podcast_rss(xml)
         update_podcast_database(url, db, info)
 
+
 # EPISODES #####################################################################
 
-def download_episodes(db):
+def download_episodes(db, cfg):
 
-    def remove_old_podcast_episodes(url, keep, db):
+    def remove_old_podcast_episodes(url, keep, db, cfg):
         for row in db.cursor().execute('''
-            SELECT rowid, episode_url
+            SELECT rowid, episode_url, title
               FROM episodes
              WHERE podcast_url = ?
                AND keep = 0
-               AND perc_downl > 0.0
+               AND downloaded = 1
           ORDER BY date DESC
              LIMIT -1 OFFSET ?''', (url, keep)):
             os.remove(cfg.download_path + '/' + row[0])
-            db.cursor.execute('UPDATE episodes SET perc_downl = 0.0 WHERE episode_url = ?', (row[1],))
+            db.cursor.execute('UPDATE episodes SET downloaded = 0 WHERE episode_url = ?', (row[1],))
+            logging.debug("Removed episode '" + row[2] + "'")
         db.commit()
 
     def download_new_podcast_episodes(url, db):
+        db.cursor().execute('''
+            INSERT INTO downloads ( url, podcast_title, episode_title )
+                 SELECT ep
         pass
+        """
+        for row in db.cursor().execute('''
+            SELECT episode_url, title, downloaded
+              FROM episodes
+             WHERE podcast_url = ?
+          ORDER BY date DESC
+             LIMIT ?''', (url, cfg.keep_episodes)):
+            if float(row[2]) < 1.0:
+                download_queue[row[0]] = row[1]
+        """
 
     for row in db.cursor().execute('SELECT url, keep_episodes FROM podcasts'):
         url = row[0]
-        remove_old_podcast_episodes(url, row[1], db)
+        remove_old_podcast_episodes(url, row[1], db, cfg)
         download_new_podcast_episodes(url, db)
 
-# UTIL #########################################################################
 
-def download_file(url):
-    response = urllib.request.urlopen(url)
-    data = response.read()
-    return data.decode('utf-8')
+# DOWNLOAD THREAD ##############################################################
 
+class DownloadThread(threading.Thread):
+
+    counter = 0
+
+    def __init__(self, db):
+        threading.Thread.__init__(self)
+        self.db = db
+        self.number = DownloadThread.counter
+        DownloadThread.counter += 1
+
+    def run(self):
+        logging.debug('Download thread #' + str(self.number) + ' started.')
+        while True:
+            time.sleep(1)
 
 # MAIN #########################################################################
 
 if __name__ == '__main__':
     logging.basicConfig(level='DEBUG')
-    db = open_database()
+    db             = open_database()
+    cfg            = read_config_file()
+
+    for _ in range(0, cfg.download_threads):
+        DownloadThread(db).start()
+
     while True:
-        logging.info('Executing loop...')
+        logging.debug('-------------------------------------------------------')
+        logging.debug('Executing loop...')
         cfg = read_config_file()
         check_podcasts(cfg, db)
-        download_episodes(db)
+        download_episodes(db, cfg)
+        logging.debug('Waiting for next loop...')
         time.sleep(120)
 
 # vim: foldmethod=marker
