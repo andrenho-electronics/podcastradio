@@ -189,31 +189,40 @@ class DownloadThread(threading.Thread):
 
     @staticmethod
     def remove_thread_locks(db):
-        pass    # TODO
+        db.cursor().execute('UPDATE downloads SET thread = NULL')
+        db.commit()
 
-    def __init__(self, db):
+    def __init__(self):
         threading.Thread.__init__(self)
-        self.db = db
         self.number = DownloadThread.counter
         DownloadThread.counter += 1
 
     def run(self):
         logging.debug('Download thread #' + str(self.number) + ' started.')
+        db = open_database()
         while True:
-            with DownloadThread.get_episode_lock:
-                pass  # TODO
+            # find a new download
+            download_url = None
+            with DownloadThread.get_episode_lock:  # lock threads so another thread does not reserve the same download
+                for row in db.cursor().execute('SELECT url, podcast_title FROM downloads LIMIT 1'):
+                    download_url = row[0]
+                    db.cursor().execute('UPDATE downloads SET thread = ? WHERE url = ?', (self.number, row[0]))
+                    db.commit()
+                    logging.debug('Thread #' + str(self.number) + ': downloading ' + row[0] + ' (' + row[1] + ')')
+            if download_url is not None:
+                pass  # TODO - start download
             time.sleep(1)
 
 # MAIN #########################################################################
 
 if __name__ == '__main__':
     logging.basicConfig(level='DEBUG')
-    db             = open_database()
-    cfg            = read_config_file()
+    db  = open_database()
+    cfg = read_config_file()
 
     DownloadThread.remove_thread_locks(db)
     for _ in range(0, cfg.download_threads):
-        DownloadThread(db).start()
+        DownloadThread().start()
 
     while True:
         logging.debug('-------------------------------------------------------')
