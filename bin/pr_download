@@ -165,19 +165,14 @@ def download_episodes(db, cfg):
 
     def download_new_podcast_episodes(url, db):
         db.cursor().execute('''
-            INSERT INTO downloads ( url, podcast_title, episode_title )
-                 SELECT ep
-        pass
-        """
-        for row in db.cursor().execute('''
-            SELECT episode_url, title, downloaded
-              FROM episodes
-             WHERE podcast_url = ?
-          ORDER BY date DESC
-             LIMIT ?''', (url, cfg.keep_episodes)):
-            if float(row[2]) < 1.0:
-                download_queue[row[0]] = row[1]
-        """
+            INSERT OR IGNORE INTO downloads ( url, podcast_title, episode_title )
+                 SELECT episode_url, p.title, e.title
+                   FROM episodes e
+             INNER JOIN podcasts p ON p.url = e.podcast_url
+                  WHERE e.podcast_url = ?
+               ORDER BY date DESC
+                  LIMIT ?''', (url, cfg.keep_episodes))
+        db.commit()
 
     for row in db.cursor().execute('SELECT url, keep_episodes FROM podcasts'):
         url = row[0]
@@ -200,6 +195,7 @@ class DownloadThread(threading.Thread):
     def run(self):
         logging.debug('Download thread #' + str(self.number) + ' started.')
         while True:
+            # TODO
             time.sleep(1)
 
 # MAIN #########################################################################
