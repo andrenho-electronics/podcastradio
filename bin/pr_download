@@ -56,13 +56,13 @@ def open_database():
         ''')
         conn.cursor().execute('''
             CREATE TABLE IF NOT EXISTS downloads (
-                url             TEXT,
+                url             TEXT     PRIMARY KEY,
+                episode_rowid   INTEGER  UNIQUE,
                 podcast_title   TEXT,
                 episode_title   TEXT,
                 thread          INTEGER  DEFAULT NULL,
                 episode_size    INTEGER  DEFAULT NULL,
                 bytes_downd     INTEGER  DEFAULT 0,
-                PRIMARY KEY(url),
                 FOREIGN KEY(url) REFERENCES episodes(episode_url)
             );
         ''')
@@ -165,8 +165,8 @@ def download_episodes(db, cfg):
 
     def download_new_podcast_episodes(url, db):
         db.cursor().execute('''
-            INSERT OR IGNORE INTO downloads ( url, podcast_title, episode_title )
-                 SELECT episode_url, p.title, e.title
+            INSERT OR IGNORE INTO downloads ( url, podcast_title, episode_title, episode_rowid )
+                 SELECT episode_url, p.title, e.title, e.rowid
                    FROM episodes e
              INNER JOIN podcasts p ON p.url = e.podcast_url
                   WHERE e.podcast_url = ?
@@ -192,9 +192,10 @@ class DownloadThread(threading.Thread):
         db.cursor().execute('UPDATE downloads SET thread = NULL')
         db.commit()
 
-    def __init__(self):
+    def __init__(self, cfg):
         threading.Thread.__init__(self)
         self.number = DownloadThread.counter
+        self.cfg = cfg
         DownloadThread.counter += 1
 
     def run(self):
@@ -202,15 +203,23 @@ class DownloadThread(threading.Thread):
         db = open_database()
         while True:
             # find a new download
-            download_url = None
+            download = None
             with DownloadThread.get_episode_lock:  # lock threads so another thread does not reserve the same download
-                for row in db.cursor().execute('SELECT url, podcast_title FROM downloads LIMIT 1'):
-                    download_url = row[0]
-                    db.cursor().execute('UPDATE downloads SET thread = ? WHERE url = ?', (self.number, row[0]))
+                for row in db.cursor().execute('''
+                    SELECT url, episode_rowid, podcast_title
+                      FROM downloads 
+                     WHERE thread IS NULL
+                     LIMIT 1'''):
+                    download = (row[0], row[1])
+                    db.cursor().execute('UPDATE downloads SET thread = ? WHERE url = ?', 
+                            (self.number, row[0]))
                     db.commit()
-                    logging.debug('Thread #' + str(self.number) + ': downloading ' + row[0] + ' (' + row[1] + ')')
-            if download_url is not None:
-                pass  # TODO - start download
+                    logging.debug('Thread #' + str(self.number) + ': downloading ' + row[0] + ' (' + row[2] + ')')
+            if download is not None:
+                def callback(block_transferred, block_size, total_size):
+                    pass
+                urllib.request.urlretrieve(download[0], self.cfg.download_path + '/' + str(download[1]), callback)
+                logging.debug('Thread #' + str(self.number) + ': download finished of URL ' + download[0])
             time.sleep(1)
 
 # MAIN #########################################################################
@@ -222,7 +231,7 @@ if __name__ == '__main__':
 
     DownloadThread.remove_thread_locks(db)
     for _ in range(0, cfg.download_threads):
-        DownloadThread().start()
+        DownloadThread(cfg).start()
 
     while True:
         logging.debug('-------------------------------------------------------')
