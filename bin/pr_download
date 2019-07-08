@@ -185,6 +185,11 @@ def download_episodes(db, cfg):
 class DownloadThread(threading.Thread):
 
     counter = 0
+    get_episode_lock = threading.Lock()
+
+    @staticmethod
+    def remove_thread_locks(db):
+        pass    # TODO
 
     def __init__(self, db):
         threading.Thread.__init__(self)
@@ -195,7 +200,8 @@ class DownloadThread(threading.Thread):
     def run(self):
         logging.debug('Download thread #' + str(self.number) + ' started.')
         while True:
-            # TODO
+            with DownloadThread.get_episode_lock:
+                pass  # TODO
             time.sleep(1)
 
 # MAIN #########################################################################
@@ -205,6 +211,7 @@ if __name__ == '__main__':
     db             = open_database()
     cfg            = read_config_file()
 
+    DownloadThread.remove_thread_locks(db)
     for _ in range(0, cfg.download_threads):
         DownloadThread(db).start()
 
