@@ -242,8 +242,11 @@ class DownloadThread(threading.Thread):
                     for data in response.iter_content(chunk_size=(1024 * 1024)):  # 1 Mb chunks
                         downloaded += len(data)
                         f.write(data)
-                        db.cursor().execute('UPDATE downloads SET bytes_downd = ? WHERE url = ?', (downloaded, url))
-                        db.commit()
+                        try:
+                            db.cursor().execute('UPDATE downloads SET bytes_downd = ? WHERE url = ?', (downloaded, url))
+                            db.commit()
+                        except sqlite3.OperationalError:
+                            pass   # ignore database locked
                 # episode finished downloading
                 db.cursor().execute('DELETE FROM downloads WHERE url = ?', (url,))
                 db.cursor().execute('''UPDATE episodes
