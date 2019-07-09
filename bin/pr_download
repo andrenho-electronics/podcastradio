@@ -2,6 +2,7 @@
 
 import configparser
 import logging
+import os
 import sqlite3
 import time
 import urllib.request
@@ -24,6 +25,7 @@ def read_config_file():
         cfg.podcasts.append(key)
     cfg.keep_episodes = int(config['config']['keep_episodes'])
     cfg.download_path = config['config']['download_path']
+    os.makedirs(cfg.download_path, exist_ok=True)
     cfg.download_threads = int(config['config']['download_threads'])
     return cfg
 
@@ -215,11 +217,33 @@ class DownloadThread(threading.Thread):
                             (self.number, row[0]))
                     db.commit()
                     logging.debug('Thread #' + str(self.number) + ': downloading ' + row[0] + ' (' + row[2] + ')')
+            # download episode
             if download is not None:
-                def callback(block_transferred, block_size, total_size):
-                    pass
-                urllib.request.urlretrieve(download[0], self.cfg.download_path + '/' + str(download[1]), callback)
-                logging.debug('Thread #' + str(self.number) + ': download finished of URL ' + download[0])
+                url, rowid = download
+                size = 0  # update this on callback
+
+                def callback(block_transferred, block_size, total_size): # call this callback when downloading
+                    size = total_size
+                    '''
+                    try:
+                        db.cursor().execute('''UPDATE downloads
+                                                  SET episode_size = ?,
+                                                      bytes_downd = ?
+                                                WHERE url = ?''', (total_size, block_size * block_transferred, url))
+                        db.commit()
+                    except sqlite3.OperationalError:
+                        pass  # ignore locking errors
+                    '''
+
+                urllib.request.urlretrieve(url, self.cfg.download_path + '/' + str(rowid), callback)
+                db.cursor().execute('DELETE FROM downloads WHERE url = ?', (url,))
+                db.cursor().execute('''UPDATE episodes
+                                          SET downloaded = 1
+                                            , nbytes = ?
+                                        WHERE url = ?''', (size, url))
+                db.commit()
+                logging.debug('Thread #' + str(self.number) + ': download finished of URL ' + url)
+            # wait one second
             time.sleep(1)
 
 # MAIN #########################################################################
