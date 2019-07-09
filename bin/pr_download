@@ -67,6 +67,7 @@ def open_database():
                 thread          INTEGER  DEFAULT NULL,
                 episode_size    INTEGER  DEFAULT NULL,
                 bytes_downd     INTEGER  DEFAULT 0,
+                last_status     INTEGER,
                 FOREIGN KEY(url) REFERENCES episodes(episode_url)
             );
         ''')
@@ -118,14 +119,15 @@ def check_podcasts(cfg, db):
         info.episodes = []
         for item in root.findall('./channel/item'):
             ep = Episode()
-            ep.url = item.find('enclosure').attrib['url']
-            ep.title = item.find('title').text
-            ep.date = int(time.mktime(parsedate_tz(item.find('pubDate').text)[0:9]))  # date in unix timestamp format
-            try:
-                ep.length = item.find('{http://www.itunes.com/dtds/podcast-1.0.dtd}duration').text
-            except AttributeError:
-                pass
-            info.episodes.append(ep)
+            if item.find('enclosure'):
+                ep.url = item.find('enclosure').attrib['url']
+                ep.title = item.find('title').text
+                ep.date = int(time.mktime(parsedate_tz(item.find('pubDate').text)[0:9]))  # date in unix timestamp format
+                try:
+                    ep.length = item.find('{http://www.itunes.com/dtds/podcast-1.0.dtd}duration').text
+                except AttributeError:
+                    pass
+                info.episodes.append(ep)
         logging.info('Parsed data from podcast RSS: ' + info.title)
         return info
 
@@ -231,30 +233,35 @@ class DownloadThread(threading.Thread):
             if download is not None:
                 url, rowid = download
                 with open(self.cfg.download_path + '/' + str(rowid), 'wb') as f:
-                    # open URL
-                    response = requests.get(url, stream=True)
-                    # get episode size
-                    size = int(response.headers.get('content-length'))
-                    db.cursor().execute('UPDATE downloads SET episode_size = ? WHERE url = ?', (size, url))
-                    db.commit()
-                    # download in 1 Mb chunks
-                    downloaded = 0
-                    for data in response.iter_content(chunk_size=(1024 * 1024)):  # 1 Mb chunks
-                        downloaded += len(data)
-                        f.write(data)
-                        try:
-                            db.cursor().execute('UPDATE downloads SET bytes_downd = ? WHERE url = ?', (downloaded, url))
-                            db.commit()
-                        except sqlite3.OperationalError:
-                            pass   # ignore database locked
-                # episode finished downloading
-                db.cursor().execute('DELETE FROM downloads WHERE url = ?', (url,))
-                db.cursor().execute('''UPDATE episodes
-                                          SET downloaded = 1
-                                            , nbytes = ?
-                                        WHERE episode_url = ?''', (size, url))
-                db.commit()
-                logging.info('Thread #' + str(self.number) + ': download finished of URL ' + url)
+                    try:
+                        # open URL
+                        response = requests.get(url, stream=True)
+                        db.cursor().execute('UPDATE downloads SET last_response = ? WHERE url = ?', (response.status, url))
+                        response.raise_for_status()
+                        # get episode size
+                        size = int(response.headers.get('content-length'))
+                        db.cursor().execute('UPDATE downloads SET episode_size = ? WHERE url = ?', (size, url))
+                        db.commit()
+                        # download in 1 Mb chunks
+                        downloaded = 0
+                        for data in response.iter_content(chunk_size=(1024 * 1024)):  # 1 Mb chunks
+                            downloaded += len(data)
+                            f.write(data)
+                            try:
+                                db.cursor().execute('UPDATE downloads SET bytes_downd = ? WHERE url = ?', (downloaded, url))
+                                db.commit()
+                            except sqlite3.OperationalError:
+                                pass   # ignore database locked
+                        # episode finished downloading
+                        db.cursor().execute('DELETE FROM downloads WHERE url = ?', (url,))
+                        db.cursor().execute('''UPDATE episodes
+                                                  SET downloaded = 1
+                                                    , nbytes = ?
+                                                WHERE episode_url = ?''', (size, url))
+                        db.commit()
+                        logging.info('Thread #' + str(self.number) + ': download finished of URL ' + url)
+                    except Exception as e:
+                        logging.warning('Error downloading url <' + url + '>: ' + str(e))
             # wait one second
             time.sleep(1)
 

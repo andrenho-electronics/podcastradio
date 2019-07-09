@@ -2,6 +2,7 @@
 - logging to file (rotating)
 - use GUID filename and store filename in table
 - download images
+- equal sign on config file (ex. https://www.npr.org/rss/podcast.php?id=510303)
 
 future:
 - import OPML file
