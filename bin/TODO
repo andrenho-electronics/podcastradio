@@ -1,2 +1,7 @@
 - treat errors
 - logging to file (rotating)
+- use GUID filename and store filename in table
+- download images
+
+future:
+- import OPML file
