@@ -5,6 +5,7 @@ import logging
 import os
 import sqlite3
 import time
+import pprint
 import requests
 import threading
 import xml.etree.ElementTree as ET  
@@ -17,61 +18,84 @@ from pprint import pprint
 class Config:
     def __init__(self):
         self.podcasts = []
+        self.keep_episodes = 5
+        self.download_path = '/var/db/podcastradio/download'
+        self.image_path = '/var/db/podcastradio/images'
+        self.download_threads = 3
 
-def read_config_file():
+def read_config_file(filename):
     cfg = Config()
     config = configparser.ConfigParser(delimiters=('=',), allow_no_value=True)
-    config.read('download.ini')
-    for key in config['podcasts']:
-        cfg.podcasts.append(key)
-    cfg.keep_episodes = int(config['config']['keep_episodes'])
-    cfg.download_path = config['config']['download_path']
-    os.makedirs(cfg.download_path, exist_ok=True)
-    cfg.download_threads = int(config['config']['download_threads'])
+    if len(config.read(filename)) == 0:
+        raise Excpetion('File ' + filename + ' not found.')
+    try:
+        for key in config['podcasts']:
+            cfg.podcasts.append(key)
+    except KeyError:
+        pass
+    try:
+        cfg.keep_episodes = int(config['config']['keep_episodes'])
+    except KeyError:
+        pass
+    try:
+        cfg.download_path = config['config']['download_path']
+        os.makedirs(cfg.download_path, exist_ok=True)
+    except KeyError:
+        pass
+    try:
+        cfg.image_path = config['config']['image_path']
+        os.makedirs(cfg.image_path, exist_ok=True)
+    except KeyError:
+        pass
+    try:
+        cfg.download_threads = int(config['config']['download_threads'])
+    except KeyError:
+        pass
     return cfg
 
 
 # DATABASE #####################################################################
 
+def create_database_objects(conn):
+    conn.cursor().execute('''
+        CREATE TABLE IF NOT EXISTS podcasts (
+            url           TEXT PRIMARY KEY,
+            title         TEXT,
+            image_path    TEXT,
+            keep_episodes INTEGER   DEFAULT 5,
+            last_status   INTEGER,
+            error         TEXT
+        );
+    ''')
+    conn.cursor().execute('''
+        CREATE TABLE IF NOT EXISTS episodes (
+            podcast_url   TEXT,
+            episode_url   TEXT,
+            title         TEXT,
+            date          INTEGER,
+            length        TEXT,
+            nbytes        INTEGER,
+            downloaded    BOOLEAN   DEFAULT 0,
+            keep          BOOLEAN   DEFAULT 0,
+            PRIMARY KEY(podcast_url, episode_url),
+            FOREIGN KEY(podcast_url) REFERENCES podcasts(url)
+        );
+    ''')
+    conn.cursor().execute('''
+        CREATE TABLE IF NOT EXISTS downloads (
+            url             TEXT     PRIMARY KEY,
+            episode_rowid   INTEGER  UNIQUE,
+            podcast_title   TEXT,
+            episode_title   TEXT,
+            thread          INTEGER  DEFAULT NULL,
+            episode_size    INTEGER  DEFAULT NULL,
+            bytes_downd     INTEGER  DEFAULT 0,
+            last_status     INTEGER,
+            FOREIGN KEY(url) REFERENCES episodes(episode_url)
+        );
+    ''')
+
 def open_database():
-
-    def create_database_objects(conn):
-        conn.cursor().execute('''
-            CREATE TABLE IF NOT EXISTS podcasts (
-                url           TEXT PRIMARY KEY,
-                title         TEXT,
-                keep_episodes INTEGER   DEFAULT 5,
-                last_status   INTEGER
-            );
-        ''')
-        conn.cursor().execute('''
-            CREATE TABLE IF NOT EXISTS episodes (
-                podcast_url   TEXT,
-                episode_url   TEXT,
-                title         TEXT,
-                date          INTEGER,
-                length        TEXT,
-                nbytes        INTEGER,
-                downloaded    BOOLEAN   DEFAULT 0,
-                keep          BOOLEAN   DEFAULT 0,
-                PRIMARY KEY(podcast_url, episode_url),
-                FOREIGN KEY(podcast_url) REFERENCES podcasts(url)
-            );
-        ''')
-        conn.cursor().execute('''
-            CREATE TABLE IF NOT EXISTS downloads (
-                url             TEXT     PRIMARY KEY,
-                episode_rowid   INTEGER  UNIQUE,
-                podcast_title   TEXT,
-                episode_title   TEXT,
-                thread          INTEGER  DEFAULT NULL,
-                episode_size    INTEGER  DEFAULT NULL,
-                bytes_downd     INTEGER  DEFAULT 0,
-                last_status     INTEGER,
-                FOREIGN KEY(url) REFERENCES episodes(episode_url)
-            );
-        ''')
-
     conn = sqlite3.connect('podcastradio.db')
     create_database_objects(conn)
     return conn
@@ -105,6 +129,7 @@ def check_podcasts(cfg, db):
         response = requests.get(url)
         db.cursor().execute('UPDATE podcasts SET last_status = ? WHERE url = ?', (response.status_code, url))
         db.commit()
+        response.raise_for_status()
         logging.info('Podcast XML file downloaded from URL ' + url)
         return response.content
 
@@ -114,28 +139,60 @@ def check_podcasts(cfg, db):
         class Episode:
             pass
         info = PodcastInfo()
+        info.title = None
+        info.image_path = None
         root = ET.fromstring(xml)
-        info.title = root.find('./channel/title').text
-        info.episodes = []
-        for item in root.findall('./channel/item'):
-            ep = Episode()
-            if item.find('enclosure'):
-                ep.url = item.find('enclosure').attrib['url']
-                ep.title = item.find('title').text
-                ep.date = int(time.mktime(parsedate_tz(item.find('pubDate').text)[0:9]))  # date in unix timestamp format
-                try:
-                    ep.length = item.find('{http://www.itunes.com/dtds/podcast-1.0.dtd}duration').text
-                except AttributeError:
-                    pass
-                info.episodes.append(ep)
-        logging.info('Parsed data from podcast RSS: ' + info.title)
-        return info
+        title_element = root.find('./channel/title')
+        if title_element is not None:
+            info.title = title_element.text
+            info.episodes = []
+            image_element = root.find('./channel/image/url')
+            if image_element is not None:
+                info.image_path = image_element.text
+            for item in root.findall('./channel/item'):
+                ep = Episode()
+                if item.find('enclosure'):
+                    ep.url = item.find('enclosure').attrib['url']
+                    ep.title = item.find('title').text
+                    ep.date = int(time.mktime(parsedate_tz(item.find('pubDate').text)[0:9]))  # date in unix timestamp format
+                    try:
+                        ep.length = item.find('{http://www.itunes.com/dtds/podcast-1.0.dtd}duration').text
+                    except AttributeError:
+                        pass
+                    info.episodes.append(ep)
+            logging.info('Parsed data from podcast RSS: ' + info.title)
+            return info
+        else:
+            return None
+
+    def update_image(cfg, url, db, info):
+        current_image = None
+        try:
+            current_image = db.cursor().execute('SELECT image_path FROM podcasts WHERE url = ?', (url,)).fetchone()[0]
+        except:
+            return
+        if info.image_path != current_image:
+            response = requests.get(info.image_path)
+            try:
+                response.raise_for_status()
+            except:
+                logging.warning('Error loading image file from URL ' + info.image_path)
+                return
+            filename = info.image_path[info.image_path.rfind("/")+1:]
+            os.makedirs(cfg.image_path, exist_ok=True)
+            full_filename = cfg.image_path + '/' + filename
+            with open(cfg.image_path + '/' + filename, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=128):
+                    f.write(chunk)
+            info.image_path = cfg.image_path + '/' + filename
+            logging.info('Podcast image file downloaded from URL ' + info.image_path)
 
     def update_podcast_database(url, db, info):
         db.cursor().execute('''
             UPDATE podcasts
-               SET title = ?
-             WHERE url = ?''', (info.title, url))
+               SET title = ?,
+                   image_path = ?
+             WHERE url = ?''', (info.title, info.image_path, url))
         for ep in info.episodes:
             db.cursor().execute('''
                 INSERT OR IGNORE INTO episodes ( podcast_url, episode_url, title, date, length )
@@ -146,9 +203,17 @@ def check_podcasts(cfg, db):
 
     urls = check_config_against_db(cfg, db)
     for url in urls:
-        xml = download_podcast_rss(url)
-        info = parse_podcast_rss(xml)
-        update_podcast_database(url, db, info)
+        try:
+            xml = download_podcast_rss(url)
+            info = parse_podcast_rss(xml)
+            if info:
+                update_image(cfg, url, db, info)
+                update_podcast_database(url, db, info)
+        except Exception as e:
+            db.cursor().execute('UPDATE podcasts SET error = ? WHERE url = ?', (str(e), url))
+            db.commit()
+            logging.warning(str(e))
+            continue
 
 
 # EPISODES #####################################################################
@@ -270,7 +335,7 @@ class DownloadThread(threading.Thread):
 if __name__ == '__main__':
     logging.basicConfig(level='INFO')
     db  = open_database()
-    cfg = read_config_file()
+    cfg = read_config_file('download.ini')
 
     DownloadThread.remove_thread_locks(db)
     for _ in range(0, cfg.download_threads):
@@ -279,11 +344,11 @@ if __name__ == '__main__':
     while True:
         logging.info('-------------------------------------------------------')
         logging.info('Executing loop...')
-        cfg = read_config_file()
+        cfg = read_config_file('download.ini')
         check_podcasts(cfg, db)
         download_episodes(db, cfg)
         logging.info('Waiting for next loop...')
-        #time.sleep(120)
-        input("Press Enter to continue...")
+        time.sleep(120)
+        #input("Press Enter to continue...")
 
 # vim: foldmethod=marker
