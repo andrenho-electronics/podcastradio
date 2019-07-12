@@ -103,7 +103,7 @@ def open_database():
 
 # PODCASTS #####################################################################
 
-def check_podcasts(cfg, db):
+def check_podcasts(cfg, db, throw_exceptions=False):
 
     def check_config_against_db(cfg, db):
         c = db.cursor()
@@ -149,6 +149,7 @@ def check_podcasts(cfg, db):
             image_element = root.find('./channel/image/url')
             if image_element is not None:
                 info.image_path = image_element.text
+            print(root.findall('./channel/item'))
             for item in root.findall('./channel/item'):
                 ep = Episode()
                 if item.find('enclosure'):
@@ -213,6 +214,8 @@ def check_podcasts(cfg, db):
             db.cursor().execute('UPDATE podcasts SET error = ? WHERE url = ?', (str(e), url))
             db.commit()
             logging.warning(str(e))
+            if throw_exceptions:
+                raise e
             continue
 
 

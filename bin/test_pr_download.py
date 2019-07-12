@@ -42,7 +42,7 @@ class TestCheckPodcasts(BaseTest):
 
     def test_no_podcasts(self):
         cfg = Config()
-        check_podcasts(cfg, self.db)
+        check_podcasts(cfg, self.db, True)
         self.assertEqual(self.db.cursor().execute('SELECT count(*) FROM podcasts').fetchone()[0], 0)
 
     @responses.activate
@@ -50,7 +50,7 @@ class TestCheckPodcasts(BaseTest):
         cfg = Config()
         cfg.podcasts = ['http://localhost/op1']
         responses.add(responses.GET, 'http://localhost/op1', body='<?xml version="1.1"?><!DOCTYPE _[<!ELEMENT _ EMPTY>]><_/>', status=200)
-        check_podcasts(cfg, self.db)
+        check_podcasts(cfg, self.db, True)
         self.assertEqual(self.db.cursor().execute('SELECT count(*) FROM podcasts').fetchone()[0], 1)
 
     @responses.activate
@@ -64,7 +64,7 @@ class TestCheckPodcasts(BaseTest):
                 </channel>
             </rss>
         ''', status=200)
-        check_podcasts(cfg, self.db)
+        check_podcasts(cfg, self.db, True)
         self.assertEqual(self.db.cursor().execute('SELECT count(*) FROM podcasts').fetchone()[0], 1)
         self.assertEqual(self.db.cursor().execute('SELECT title FROM podcasts LIMIT 1').fetchone()[0], 'My podcast')
         self.assertEqual(self.db.cursor().execute('SELECT last_status FROM podcasts LIMIT 1').fetchone()[0], 200)
@@ -84,10 +84,10 @@ class TestCheckPodcasts(BaseTest):
         cfg = Config()
         cfg.podcasts = ['http://localhost/op1']
         responses.add(responses.GET, 'http://localhost/op1', body='<?xml version="1.1"?><!DOCTYPE _[<!ELEMENT _ EMPTY>]><_/>', status=200)
-        check_podcasts(cfg, self.db)
+        check_podcasts(cfg, self.db, True)
         self.assertEqual(self.db.cursor().execute('SELECT count(*) FROM podcasts').fetchone()[0], 1)
         cfg.podcasts = []
-        check_podcasts(cfg, self.db)
+        check_podcasts(cfg, self.db, True)
         self.assertEqual(self.db.cursor().execute('SELECT count(*) FROM podcasts').fetchone()[0], 0)
 
     @responses.activate
@@ -108,7 +108,7 @@ class TestCheckPodcasts(BaseTest):
                 </rss>
             ''', status=200)
             responses.add(responses.GET, 'http://localhost/image.jpg', b'My image', status=200)
-            check_podcasts(cfg, self.db)
+            check_podcasts(cfg, self.db, True)
             self.assertEqual(self.db.cursor().execute('SELECT image_path FROM podcasts LIMIT 1').fetchone()[0], tempdir + '/image.jpg')
             with open(tempdir + '/image.jpg', mode='rb') as f:
                 self.assertEqual(f.read(), b'My image')
@@ -160,7 +160,7 @@ class TestCheckEpisodes(BaseTest):
         cfg = Config()
         cfg.podcasts = ['http://localhost/op1']
         responses.add(responses.GET, 'http://localhost/op1', body=podcast1_xml)
-        check_podcasts(cfg, self.db)
+        check_podcasts(cfg, self.db, True)
         self.assertEqual(self.db.cursor().execute('SELECT count(*) FROM episodes').fetchone()[0], 2)
         # TODO - check each individual value
 
