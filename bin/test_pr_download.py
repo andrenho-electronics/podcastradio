@@ -189,6 +189,15 @@ class TestCheckEpisodes(BaseTest):
         check_podcasts(cfg, self.db, True)
         self.assertEqual(1, self.db.cursor().execute('SELECT count(*) FROM episodes').fetchone()[0])
 
+class ChooseEpisodesToDownload:
+
+    def simple(self):
+        cfg = Config()
+        cfg.podcasts = ['http://localhost/op1']
+        responses.add(responses.GET, 'http://localhost/op1', body=podcast1_xml)
+        responses.add(responses.GET, 'http://localhost/image.jpg', b'My image')
+        check_podcasts(cfg, self.db, True)
+        
 
 # TODO:
 # download_episodes (identify episodes to download)
