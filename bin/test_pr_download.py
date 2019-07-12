@@ -162,7 +162,17 @@ class TestCheckEpisodes(BaseTest):
         responses.add(responses.GET, 'http://localhost/op1', body=podcast1_xml)
         responses.add(responses.GET, 'http://localhost/image.jpg', b'My image')
         check_podcasts(cfg, self.db, True)
-        self.assertEqual(self.db.cursor().execute('SELECT count(*) FROM episodes').fetchone()[0], 2)
+        self.assertEqual(2, self.db.cursor().execute('SELECT count(*) FROM episodes').fetchone()[0])
+        podcast_url, title, date, length, nbytes, downloaded, keep = \
+            self.db.cursor().execute("""SELECT podcast_url, title, date, length, nbytes, downloaded, keep 
+                                          FROM episodes 
+                                         WHERE episode_url='https://localhost/episode1.mp3'""").fetchone()
+        self.assertEqual('http://localhost/op1', podcast_url)
+        self.assertEqual('Episode 1', title)
+        self.assertEqual(1562774497, date)
+        self.assertEqual(9760190, nbytes)
+        self.assertEqual(0, downloaded)
+        self.assertEqual(0, keep)
         # TODO - check each individual value
 
 # check_podcasts:

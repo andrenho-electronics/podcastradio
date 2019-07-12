@@ -9,6 +9,7 @@
     - large methods
     - large classes
 - logging to file (rotating)
+- invert tests orders
 
 future:
 - import OPML file
