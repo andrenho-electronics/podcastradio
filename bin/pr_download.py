@@ -9,6 +9,7 @@ import pprint
 import requests
 import threading
 import xml.etree.ElementTree as ET  
+from dataclasses import dataclass
 from email.utils import parsedate_tz
 from requests.exceptions import HTTPError
 from pprint import pprint
@@ -136,8 +137,13 @@ def check_podcasts(cfg, db, throw_exceptions=False):
     def parse_podcast_rss(xml):
         class PodcastInfo:
             pass
+        @dataclass
         class Episode:
-            pass
+            url:    str = ""
+            title:  str = ""
+            nbytes: int = 0
+            date:   int = 0
+            length: int = 0
         info = PodcastInfo()
         info.title = None
         info.image_path = None
@@ -151,10 +157,22 @@ def check_podcasts(cfg, db, throw_exceptions=False):
                 info.image_path = image_element.text
             for item in root.findall('./channel/item'):
                 ep = Episode()
-                if item.find('enclosure') is not None:
-                    ep.url = item.find('enclosure').attrib['url']
-                    ep.title = item.find('title').text
-                    ep.date = int(time.mktime(parsedate_tz(item.find('pubDate').text)[0:9]))  # date in unix timestamp format
+                enclosure = item.find('enclosure')
+                if enclosure is not None:
+                    ep.url = enclosure.attrib['url']
+                    # TODO - fix this sequence of tries
+                    try:
+                        ep.title = item.find('title').text
+                    except Exception:
+                        pass
+                    try:
+                        ep.nbytes = int(enclosure.attrib['length'])
+                    except Exception:
+                        pass
+                    try:
+                        ep.date = int(time.mktime(parsedate_tz(item.find('pubDate').text)[0:9]))  # date in unix timestamp format
+                    except Exception:
+                        pass
                     try:
                         ep.length = item.find('{http://www.itunes.com/dtds/podcast-1.0.dtd}duration').text
                     except AttributeError:
@@ -195,9 +213,9 @@ def check_podcasts(cfg, db, throw_exceptions=False):
              WHERE url = ?''', (info.title, info.image_path, url))
         for ep in info.episodes:
             db.cursor().execute('''
-                INSERT OR IGNORE INTO episodes ( podcast_url, episode_url, title, date, length )
-                                VALUES ( ?, ?, ?, ?, ? )''',
-                (url, ep.url, ep.title, ep.date, ep.length))
+                INSERT OR IGNORE INTO episodes ( podcast_url, episode_url, title, date, length, nbytes )
+                                VALUES ( ?, ?, ?, ?, ?, ? )''',
+                (url, ep.url, ep.title, ep.date, ep.length, ep.nbytes))
         db.commit()
         logging.info('Tables updated for podcast ' + info.title)
 

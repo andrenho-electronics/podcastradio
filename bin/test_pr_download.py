@@ -146,8 +146,7 @@ podcast1_xml = '''
         <item>
             <title>Episode 2</title>
             <pubDate>Wed, 11 Jul 2019 13:01:37 -0300</pubDate>
-            <itunes:duration>00:12:10</itunes:duration>
-            <enclosure url="https://localhost/episode2.mp3" length="8760190" type="audio/mpeg" />
+            <enclosure url="https://localhost/episode2.mp3" type="audio/mpeg" />
         </item>
     </channel>
 </rss>
@@ -173,11 +172,25 @@ class TestCheckEpisodes(BaseTest):
         self.assertEqual(9760190, nbytes)
         self.assertEqual(0, downloaded)
         self.assertEqual(0, keep)
-        # TODO - check each individual value
 
-# check_podcasts:
-#  - interpret podcast XML with episodes
-#  - interpret podcast XML with broken episodes
+    @responses.activate
+    def test_broken_xml1(self):
+        cfg = Config()
+        cfg.podcasts = ['http://localhost/op1']
+        responses.add(responses.GET, 'http://localhost/op1', body='<rss><channel><title>X</title><item></item></channel></rss>')
+        check_podcasts(cfg, self.db, True)
+        self.assertEqual(0, self.db.cursor().execute('SELECT count(*) FROM episodes').fetchone()[0])
+
+    @responses.activate
+    def test_broken_xml2(self):
+        cfg = Config()
+        cfg.podcasts = ['http://localhost/op1']
+        responses.add(responses.GET, 'http://localhost/op1', body='<rss><channel><title>X</title><item><enclosure url="xxx"/></item></channel></rss>')
+        check_podcasts(cfg, self.db, True)
+        self.assertEqual(1, self.db.cursor().execute('SELECT count(*) FROM episodes').fetchone()[0])
+
+
+# TODO:
 # download_episodes (identify episodes to download)
 #  - simply download episodes
 #  - don't redownload
