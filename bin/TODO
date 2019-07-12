@@ -4,6 +4,10 @@
   - download images
   - equal sign on config file (ex. https://www.npr.org/rss/podcast.php?id=510303)
   - refactor
+    - inadequate names
+    - duplicated code
+    - large methods
+    - large classes
 - logging to file (rotating)
 
 future:

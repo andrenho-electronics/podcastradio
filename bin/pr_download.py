@@ -149,10 +149,9 @@ def check_podcasts(cfg, db, throw_exceptions=False):
             image_element = root.find('./channel/image/url')
             if image_element is not None:
                 info.image_path = image_element.text
-            print(root.findall('./channel/item'))
             for item in root.findall('./channel/item'):
                 ep = Episode()
-                if item.find('enclosure'):
+                if item.find('enclosure') is not None:
                     ep.url = item.find('enclosure').attrib['url']
                     ep.title = item.find('title').text
                     ep.date = int(time.mktime(parsedate_tz(item.find('pubDate').text)[0:9]))  # date in unix timestamp format
@@ -161,7 +160,7 @@ def check_podcasts(cfg, db, throw_exceptions=False):
                     except AttributeError:
                         pass
                     info.episodes.append(ep)
-            logging.info('Parsed data from podcast RSS: ' + info.title)
+            logging.info('Parsed data from podcast RSS: ' + info.title + ' (' + str(len(info.episodes)) + ' episodes)')
             return info
         else:
             return None

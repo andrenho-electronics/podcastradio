@@ -131,7 +131,7 @@ class TestCheckPodcasts(BaseTest):
 
 
 podcast1_xml = '''
-<rss>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:media="http://search.yahoo.com/mrss" version="2.0">
     <channel>
         <title>My podcast</title>
         <image>
@@ -141,13 +141,13 @@ podcast1_xml = '''
             <title>Episode 1</title>
             <pubDate>Wed, 10 Jul 2019 13:01:37 -0300</pubDate>
             <itunes:duration>00:10:10</itunes:duration>
-            <enclosure url="https://localhost/episode1.mp3" length="9760190" type="audio/mpeg"/>
+            <enclosure url="https://localhost/episode1.mp3" length="9760190" type="audio/mpeg" />
         </item>
         <item>
             <title>Episode 2</title>
             <pubDate>Wed, 11 Jul 2019 13:01:37 -0300</pubDate>
             <itunes:duration>00:12:10</itunes:duration>
-            <enclosure url="https://localhost/episode2.mp3" length="8760190" type="audio/mpeg"/>
+            <enclosure url="https://localhost/episode2.mp3" length="8760190" type="audio/mpeg" />
         </item>
     </channel>
 </rss>
@@ -160,6 +160,7 @@ class TestCheckEpisodes(BaseTest):
         cfg = Config()
         cfg.podcasts = ['http://localhost/op1']
         responses.add(responses.GET, 'http://localhost/op1', body=podcast1_xml)
+        responses.add(responses.GET, 'http://localhost/image.jpg', b'My image')
         check_podcasts(cfg, self.db, True)
         self.assertEqual(self.db.cursor().execute('SELECT count(*) FROM episodes').fetchone()[0], 2)
         # TODO - check each individual value
