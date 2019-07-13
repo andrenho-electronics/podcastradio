@@ -95,6 +95,12 @@ def create_database_objects(conn):
             FOREIGN KEY(url) REFERENCES episodes(episode_url)
         );
     ''')
+    conn.cursor().execute('''
+        CREATE TABLE IF NOT EXISTS to_remove (
+            url             TEXT    PRIMARY KEY,
+            FOREIGN KEY(url) REFERENCES episodes(episode_url)
+        );
+    ''')
 
 def open_database():
     conn = sqlite3.connect('podcastradio.db')
@@ -241,36 +247,36 @@ def check_podcasts(cfg, db, throw_exceptions=False):
 def download_episodes(db, cfg):
 
     def remove_old_podcast_episodes(url, keep, db, cfg):
-        for row in db.cursor().execute('''
-            SELECT rowid, episode_url, title
-              FROM episodes
-             WHERE podcast_url = ?
-               AND keep = 0
-               AND downloaded = 1
-          ORDER BY date DESC
-             LIMIT -1 OFFSET ?''', (url, keep)):
-            os.remove(cfg.download_path + '/' + row[0])
-            db.cursor.execute('UPDATE episodes SET downloaded = 0 WHERE episode_url = ?', (row[1],))
-            logging.info("Removed episode '" + row[2] + "'")
+        db.cursor().execute('''
+            INSERT OR IGNORE INTO to_remove ( url )
+                           SELECT episode_url
+                             FROM episodes
+                            WHERE podcast_url = ?
+                              AND keep = 0
+                              AND downloaded = 1
+                         ORDER BY date DESC
+                            LIMIT -1 OFFSET ?''', (url, keep))
         db.commit()
+        logging.info('Episodes marked to remove')
 
     def download_new_podcast_episodes(url, db):
         db.cursor().execute('''
             INSERT OR IGNORE INTO downloads ( url, podcast_title, episode_title, episode_rowid )
-                 SELECT episode_url, ptitle, ptitle, erowid
-                   FROM (SELECT episode_url, p.title ptitle, e.title etitle, e.rowid erowid, downloaded
-                           FROM episodes e
-                     INNER JOIN podcasts p ON p.url = e.podcast_url
-                          WHERE e.podcast_url = ?
-                       ORDER BY date DESC
-                          LIMIT ?)
-                  WHERE downloaded = 0
-                  UNION
-                  SELECT episode_url, p.title ptitle, e.title etitle, e.rowid erowid
-                    FROM episodes e
-              INNER JOIN podcasts p ON p.url = e.podcast_url
-                   WHERE e.podcast_url = ?
-                     AND keep = 1''', (url, cfg.keep_episodes, url))
+                           SELECT episode_url, ptitle, etitle, erowid
+                             FROM     (SELECT episode_url, p.title ptitle, e.title etitle, e.rowid erowid, downloaded
+                                         FROM episodes e
+                                   INNER JOIN podcasts p ON p.url = e.podcast_url
+                                        WHERE e.podcast_url = ?
+                                     ORDER BY date DESC
+                                        LIMIT ?)
+                            WHERE downloaded = 0
+                            UNION
+                           SELECT episode_url, p.title ptitle, e.title etitle, e.rowid erowid
+                             FROM episodes e
+                       INNER JOIN podcasts p ON p.url = e.podcast_url
+                            WHERE e.podcast_url = ?
+                              AND downloaded = 0
+                              AND keep = 1''', (url, cfg.keep_episodes, url))
         db.commit()
 
     for row in db.cursor().execute('SELECT url, keep_episodes FROM podcasts'):
@@ -279,87 +285,12 @@ def download_episodes(db, cfg):
         download_new_podcast_episodes(url, db)
 
 
-# DOWNLOAD THREAD ##############################################################
-
-class DownloadThread(threading.Thread):
-
-    counter = 0
-    get_episode_lock = threading.Lock()
-
-    @staticmethod
-    def remove_thread_locks(db):
-        db.cursor().execute('DELETE FROM downloads')
-        db.commit()
-
-    def __init__(self, cfg):
-        threading.Thread.__init__(self)
-        self.number = DownloadThread.counter
-        self.cfg = cfg
-        DownloadThread.counter += 1
-
-    def run(self):
-        logging.info('Download thread #' + str(self.number) + ' started.')
-        db = open_database()
-        while True:
-            # find a new download
-            download = None
-            with DownloadThread.get_episode_lock:  # lock threads so another thread does not reserve the same download
-                for row in db.cursor().execute('''
-                    SELECT url, episode_rowid, podcast_title
-                      FROM downloads 
-                     WHERE thread IS NULL
-                     LIMIT 1'''):
-                    download = (row[0], row[1])
-                    db.cursor().execute('UPDATE downloads SET thread = ? WHERE url = ?', 
-                            (self.number, row[0]))
-                    db.commit()
-                    logging.info('Thread #' + str(self.number) + ': downloading ' + row[0] + ' (' + row[2] + ')')
-            # download episode
-            if download is not None:
-                url, rowid = download
-                with open(self.cfg.download_path + '/' + str(rowid), 'wb') as f:
-                    try:
-                        # open URL
-                        response = requests.get(url, stream=True)
-                        db.cursor().execute('UPDATE downloads SET last_response = ? WHERE url = ?', (response.status, url))
-                        response.raise_for_status()
-                        # get episode size
-                        size = int(response.headers.get('content-length'))
-                        db.cursor().execute('UPDATE downloads SET episode_size = ? WHERE url = ?', (size, url))
-                        db.commit()
-                        # download in 1 Mb chunks
-                        downloaded = 0
-                        for data in response.iter_content(chunk_size=(1024 * 1024)):  # 1 Mb chunks
-                            downloaded += len(data)
-                            f.write(data)
-                            try:
-                                db.cursor().execute('UPDATE downloads SET bytes_downd = ? WHERE url = ?', (downloaded, url))
-                                db.commit()
-                            except sqlite3.OperationalError:
-                                pass   # ignore database locked
-                        # episode finished downloading
-                        db.cursor().execute('DELETE FROM downloads WHERE url = ?', (url,))
-                        db.cursor().execute('''UPDATE episodes
-                                                  SET downloaded = 1
-                                                    , nbytes = ?
-                                                WHERE episode_url = ?''', (size, url))
-                        db.commit()
-                        logging.info('Thread #' + str(self.number) + ': download finished of URL ' + url)
-                    except Exception as e:
-                        logging.warning('Error downloading url <' + url + '>: ' + str(e))
-            # wait one second
-            time.sleep(1)
-
 # MAIN #########################################################################
 
 if __name__ == '__main__':
     logging.basicConfig(level='INFO')
     db  = open_database()
     cfg = read_config_file('download.ini')
-
-    DownloadThread.remove_thread_locks(db)
-    for _ in range(0, cfg.download_threads):
-        DownloadThread(cfg).start()
 
     while True:
         logging.info('-------------------------------------------------------')
@@ -369,6 +300,5 @@ if __name__ == '__main__':
         download_episodes(db, cfg)
         logging.info('Waiting for next loop...')
         time.sleep(120)
-        #input("Press Enter to continue...")
 
 # vim: foldmethod=marker

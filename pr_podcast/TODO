@@ -8,7 +8,9 @@
     - duplicated code
     - large methods
     - large classes
-- logging to file (rotating)
+- move logging to syslog
+- move initial SQL to a single location
+- move to a single ini
 - invert tests orders
 
 future:

@@ -1,4 +1,5 @@
-from pr_download import *
+from pr_podcast import *
+import pprint
 import os
 import responses
 import sqlite3
@@ -158,6 +159,7 @@ class TestCheckEpisodes(BaseTest):
     def test_episodes(self):
         cfg = Config()
         cfg.podcasts = ['http://localhost/op1']
+        cfg.image_path = 'images'
         responses.add(responses.GET, 'http://localhost/op1', body=podcast1_xml)
         responses.add(responses.GET, 'http://localhost/image.jpg', b'My image')
         check_podcasts(cfg, self.db, True)
@@ -177,6 +179,7 @@ class TestCheckEpisodes(BaseTest):
     def test_broken_xml1(self):
         cfg = Config()
         cfg.podcasts = ['http://localhost/op1']
+        cfg.image_path = 'images'
         responses.add(responses.GET, 'http://localhost/op1', body='<rss><channel><title>X</title><item></item></channel></rss>')
         check_podcasts(cfg, self.db, True)
         self.assertEqual(0, self.db.cursor().execute('SELECT count(*) FROM episodes').fetchone()[0])
@@ -185,28 +188,122 @@ class TestCheckEpisodes(BaseTest):
     def test_broken_xml2(self):
         cfg = Config()
         cfg.podcasts = ['http://localhost/op1']
+        cfg.image_path = 'images'
         responses.add(responses.GET, 'http://localhost/op1', body='<rss><channel><title>X</title><item><enclosure url="xxx"/></item></channel></rss>')
         check_podcasts(cfg, self.db, True)
         self.assertEqual(1, self.db.cursor().execute('SELECT count(*) FROM episodes').fetchone()[0])
 
-class ChooseEpisodesToDownload:
+class ChooseEpisodesToDownload(BaseTest):
 
-    def simple(self):
+    @responses.activate
+    def test_simple(self):
         cfg = Config()
         cfg.podcasts = ['http://localhost/op1']
+        cfg.image_path = 'images'
+        cfg.keep_episodes = 5
         responses.add(responses.GET, 'http://localhost/op1', body=podcast1_xml)
         responses.add(responses.GET, 'http://localhost/image.jpg', b'My image')
         check_podcasts(cfg, self.db, True)
-        
+        download_episodes(self.db, cfg)
+        self.assertEqual(2, self.db.cursor().execute('SELECT count(*) FROM downloads').fetchone()[0])
+        ptitle, etitle = self.db.cursor().execute("SELECT podcast_title, episode_title FROM downloads WHERE url='https://localhost/episode1.mp3'").fetchone()
+        self.assertEqual('My podcast', ptitle)
+        self.assertEqual('Episode 1', etitle)
+        etitle = self.db.cursor().execute("SELECT episode_title FROM downloads WHERE url='https://localhost/episode2.mp3'").fetchone()[0]
+        self.assertEqual('Episode 2', etitle)
 
-# TODO:
-# download_episodes (identify episodes to download)
-#  - simply download episodes
-#  - don't redownload
-#  - keep episodes marked as keep
-#  - clear old episodes
-# DownloadThread:
-#  - reserve episode
-#  - download episode
-#  - download error
-#  - connection broken in the middle
+    @responses.activate
+    def test_just_one(self):
+        cfg = Config()
+        cfg.podcasts = ['http://localhost/op1']
+        cfg.image_path = 'images'
+        cfg.keep_episodes = 1
+        responses.add(responses.GET, 'http://localhost/op1', body=podcast1_xml)
+        responses.add(responses.GET, 'http://localhost/image.jpg', b'My image')
+        check_podcasts(cfg, self.db, True)
+        download_episodes(self.db, cfg)
+        self.assertEqual(1, self.db.cursor().execute('SELECT count(*) FROM downloads').fetchone()[0])
+        url = self.db.cursor().execute("SELECT url FROM downloads").fetchone()[0]
+        self.assertEqual('https://localhost/episode2.mp3', url)  # latest episode first
+
+    @responses.activate
+    def test_new_episode_downloaded(self):
+        cfg = Config()
+        cfg.podcasts = ['http://localhost/op1']
+        cfg.image_path = 'images'
+        cfg.keep_episodes = 1
+        responses.add(responses.GET, 'http://localhost/op1', body=podcast1_xml)
+        responses.add(responses.GET, 'http://localhost/image.jpg', b'My image')
+        # loop
+        check_podcasts(cfg, self.db, True)
+        download_episodes(self.db, cfg)
+        self.assertEqual(1, self.db.cursor().execute('SELECT count(*) FROM downloads').fetchone()[0])
+        url = self.db.cursor().execute("SELECT url FROM downloads").fetchone()[0]
+        self.assertEqual('https://localhost/episode2.mp3', url)  # latest episode first
+        # mark episode 2 as downloaded
+        self.db.cursor().execute('UPDATE episodes SET downloaded = 1 WHERE episode_url = ?', (url,))
+        self.db.commit()
+        # loop again, it should not change anything
+        check_podcasts(cfg, self.db, True)
+        download_episodes(self.db, cfg)
+        self.assertEqual(1, self.db.cursor().execute('SELECT count(*) FROM downloads').fetchone()[0])
+        url = self.db.cursor().execute("SELECT url FROM downloads").fetchone()[0]
+        self.assertEqual('https://localhost/episode2.mp3', url)  # latest episode first
+        # add a new episode
+        self.db.cursor().execute('''
+            INSERT INTO episodes ( podcast_url, episode_url, title, date )
+                 VALUES ( 'http://localhost/op1', 'https://localhost/episode3.mp3', 'My Episode 3', 2562774497 )''')
+        self.db.commit()
+        # assume episode 2 was downloaded
+        self.db.cursor().execute("UPDATE episodes SET downloaded=1 WHERE episode_url='https://localhost/episode2.mp3'")
+        self.db.cursor().execute("DELETE FROM downloads")
+        self.db.commit()
+        # loop again
+        download_episodes(self.db, cfg)
+        # now, the episode 3 must be set for download -- let's assume is downloaded
+        self.assertEqual(1, self.db.cursor().execute('SELECT count(*) FROM downloads').fetchone()[0])
+        self.assertEqual('My Episode 3', self.db.cursor().execute('SELECT episode_title FROM downloads').fetchone()[0])
+        self.db.cursor().execute("UPDATE episodes SET downloaded=1 WHERE episode_url='https://localhost/episode3.mp3'")
+        self.db.commit()
+        # on the next loop, episode 2 must be set for remove
+        download_episodes(self.db, cfg)
+        self.assertEqual(1, self.db.cursor().execute('SELECT count(*) FROM to_remove').fetchone()[0])
+        self.assertEqual('https://localhost/episode2.mp3', self.db.cursor().execute('SELECT url FROM to_remove').fetchone()[0])
+
+    @responses.activate
+    def test_keep_episodes(self):
+        cfg = Config()
+        cfg.podcasts = ['http://localhost/op1']
+        cfg.image_path = 'images'
+        cfg.keep_episodes = 1
+        responses.add(responses.GET, 'http://localhost/op1', body=podcast1_xml)
+        responses.add(responses.GET, 'http://localhost/image.jpg', b'My image')
+        # loop
+        check_podcasts(cfg, self.db, True)
+        download_episodes(self.db, cfg)
+        # mark episode 2 as downloaded, and also as kept
+        self.db.cursor().execute('UPDATE episodes SET keep = 1 WHERE episode_url = ?', ('https://localhost/episode2.mp3',))
+        self.db.commit()
+        # loop again, and assume episode 2 was downloaded
+        check_podcasts(cfg, self.db, True)
+        download_episodes(self.db, cfg)
+        self.db.cursor().execute('UPDATE episodes SET downloaded = 1 WHERE episode_url = ?', ('https://localhost/episode2.mp3',))
+        self.db.cursor().execute("DELETE FROM downloads")
+        self.db.commit()
+        # add a new episode
+        self.db.cursor().execute('''
+            INSERT INTO episodes ( podcast_url, episode_url, title, date )
+                 VALUES ( 'http://localhost/op1', 'https://localhost/episode3.mp3', 'My Episode 3', 2562774497 )''')
+        self.db.commit()
+        # loop again
+        self.assertEqual(0, self.db.cursor().execute('SELECT count(*) FROM downloads').fetchone()[0])
+        download_episodes(self.db, cfg)
+        # now, the episode 3 must be set for download -- let's assume is downloaded
+        self.assertEqual(1, self.db.cursor().execute('SELECT count(*) FROM downloads').fetchone()[0])
+        self.assertEqual('My Episode 3', self.db.cursor().execute('SELECT episode_title FROM downloads').fetchone()[0])
+        self.db.cursor().execute("UPDATE episodes SET downloaded=1 WHERE episode_url='https://localhost/episode3.mp3'")
+        self.db.commit()
+        # on the next loop, episode 2 must NOT be set for remove
+        download_episodes(self.db, cfg)
+        self.assertEqual(0, self.db.cursor().execute('SELECT count(*) FROM to_remove').fetchone()[0])
+
