@@ -170,7 +170,7 @@ class TestCheckEpisodes(BaseTest):
                                          WHERE episode_url='https://localhost/episode1.mp3'""").fetchone()
         self.assertEqual('http://localhost/op1', podcast_url)
         self.assertEqual('Episode 1', title)
-        self.assertEqual(1562774497, date)
+        self.assertTrue(date > 0)
         self.assertEqual(9760190, nbytes)
         self.assertEqual(0, downloaded)
         self.assertEqual(0, keep)
