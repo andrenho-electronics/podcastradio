@@ -13,7 +13,7 @@ class BaseTest(unittest.TestCase):
     def setUp(self):
         self.db = db.open_database(database_file=':memory:')
         cfg = config.Config()
-        self.pm = PodcastManager(cfg, self.db)
+        self.podcast_manager = PodcastManager(cfg, self.db)
 
     def tearDown(self):
         self.db.close()
@@ -22,19 +22,19 @@ class BaseTest(unittest.TestCase):
 class TestCheckPodcasts(BaseTest):
 
     def test_no_podcasts(self):
-        self.pm.check_podcasts(True)
+        self.podcast_manager.update_podcast_list(True)
         self.assertEqual(self.db.cursor().execute('SELECT count(*) FROM podcasts').fetchone()[0], 0)
 
     @responses.activate
     def test_empty_rss(self):
-        self.pm.cfg.podcasts = ['http://localhost/op1']
+        self.podcast_manager.cfg.podcasts = ['http://localhost/op1']
         responses.add(responses.GET, 'http://localhost/op1', body='<?xml version="1.1"?><!DOCTYPE _[<!ELEMENT _ EMPTY>]><_/>', status=200)
-        self.pm.check_podcasts(True)
+        self.podcast_manager.update_podcast_list(True)
         self.assertEqual(self.db.cursor().execute('SELECT count(*) FROM podcasts').fetchone()[0], 1)
 
     @responses.activate
     def test_title_only(self):
-        self.pm.cfg.podcasts = ['http://localhost/op1']
+        self.podcast_manager.cfg.podcasts = ['http://localhost/op1']
         responses.add(responses.GET, 'http://localhost/op1', body='''
             <rss>
                 <channel>
@@ -42,36 +42,36 @@ class TestCheckPodcasts(BaseTest):
                 </channel>
             </rss>
         ''', status=200)
-        self.pm.check_podcasts(True)
+        self.podcast_manager.update_podcast_list(True)
         self.assertEqual(self.db.cursor().execute('SELECT count(*) FROM podcasts').fetchone()[0], 1)
         self.assertEqual(self.db.cursor().execute('SELECT title FROM podcasts LIMIT 1').fetchone()[0], 'My podcast')
         self.assertEqual(self.db.cursor().execute('SELECT last_status FROM podcasts LIMIT 1').fetchone()[0], 200)
 
     @responses.activate
     def test_failed(self):
-        self.pm.cfg.podcasts = ['http://localhost/op1']
+        self.podcast_manager.cfg.podcasts = ['http://localhost/op1']
         responses.add(responses.GET, 'http://localhost/op1', body='Not found', status=404)
-        self.pm.check_podcasts()
+        self.podcast_manager.update_podcast_list()
         self.assertEqual(self.db.cursor().execute('SELECT count(*) FROM podcasts').fetchone()[0], 1)
         self.assertEqual(self.db.cursor().execute('SELECT title FROM podcasts LIMIT 1').fetchone()[0], None)
         self.assertEqual(self.db.cursor().execute('SELECT last_status FROM podcasts LIMIT 1').fetchone()[0], 404)
     
     @responses.activate
     def test_remove_podcast(self):
-        self.pm.cfg.podcasts = ['http://localhost/op1']
+        self.podcast_manager.cfg.podcasts = ['http://localhost/op1']
         responses.add(responses.GET, 'http://localhost/op1', body='<?xml version="1.1"?><!DOCTYPE _[<!ELEMENT _ EMPTY>]><_/>', status=200)
-        self.pm.check_podcasts(True)
+        self.podcast_manager.update_podcast_list(True)
         self.assertEqual(self.db.cursor().execute('SELECT count(*) FROM podcasts').fetchone()[0], 1)
-        self.pm.cfg.podcasts = []
-        self.pm.check_podcasts(True)
+        self.podcast_manager.cfg.podcasts = []
+        self.podcast_manager.update_podcast_list(True)
         self.assertEqual(self.db.cursor().execute('SELECT count(*) FROM podcasts').fetchone()[0], 0)
 
     @responses.activate
     def test_image(self):
         tempdir = '/tmp/test_image'
         try:
-            self.pm.cfg.podcasts = ['http://localhost/op1']
-            self.pm.cfg.image_path = tempdir
+            self.podcast_manager.cfg.podcasts = ['http://localhost/op1']
+            self.podcast_manager.cfg.image_path = tempdir
             responses.add(responses.GET, 'http://localhost/op1', body='''
                 <rss>
                     <channel>
@@ -83,7 +83,7 @@ class TestCheckPodcasts(BaseTest):
                 </rss>
             ''', status=200)
             responses.add(responses.GET, 'http://localhost/image.jpg', b'My image', status=200)
-            self.pm.check_podcasts(True)
+            self.podcast_manager.update_podcast_list(True)
             self.assertEqual(self.db.cursor().execute('SELECT image_path FROM podcasts LIMIT 1').fetchone()[0], tempdir + '/image.jpg')
             with open(tempdir + '/image.jpg', mode='rb') as f:
                 self.assertEqual(f.read(), b'My image')
@@ -93,12 +93,12 @@ class TestCheckPodcasts(BaseTest):
 
     @responses.activate
     def test_broken_xml(self):
-        self.pm.cfg.podcasts = ['http://localhost/op1']
+        self.podcast_manager.cfg.podcasts = ['http://localhost/op1']
         responses.add(responses.GET, 'http://localhost/op1', body='''
             <rss>
                 <chan...
         ''', status=200)
-        self.pm.check_podcasts()
+        self.podcast_manager.update_podcast_list()
         self.assertEqual(self.db.cursor().execute('SELECT count(*) FROM podcasts').fetchone()[0], 1)
         self.assertEqual(self.db.cursor().execute('SELECT title FROM podcasts LIMIT 1').fetchone()[0], None)
         self.assertNotEqual(self.db.cursor().execute('SELECT error FROM podcasts LIMIT 1').fetchone()[0], None)
@@ -130,11 +130,11 @@ class TestCheckEpisodes(BaseTest):
 
     @responses.activate
     def test_episodes(self):
-        self.pm.cfg.podcasts = ['http://localhost/op1']
-        self.pm.cfg.image_path = 'images'
+        self.podcast_manager.cfg.podcasts = ['http://localhost/op1']
+        self.podcast_manager.cfg.image_path = 'images'
         responses.add(responses.GET, 'http://localhost/op1', body=podcast1_xml)
         responses.add(responses.GET, 'http://localhost/image.jpg', b'My image')
-        self.pm.check_podcasts(True)
+        self.podcast_manager.update_podcast_list(True)
         self.assertEqual(2, self.db.cursor().execute('SELECT count(*) FROM episodes').fetchone()[0])
         podcast_url, title, date, length, nbytes, downloaded, keep = \
             self.db.cursor().execute("""SELECT podcast_url, title, date, length, nbytes, downloaded, keep 
@@ -149,18 +149,18 @@ class TestCheckEpisodes(BaseTest):
 
     @responses.activate
     def test_broken_xml1(self):
-        self.pm.cfg.podcasts = ['http://localhost/op1']
-        self.pm.cfg.image_path = 'images'
+        self.podcast_manager.cfg.podcasts = ['http://localhost/op1']
+        self.podcast_manager.cfg.image_path = 'images'
         responses.add(responses.GET, 'http://localhost/op1', body='<rss><channel><title>X</title><item></item></channel></rss>')
-        self.pm.check_podcasts(True)
+        self.podcast_manager.update_podcast_list(True)
         self.assertEqual(0, self.db.cursor().execute('SELECT count(*) FROM episodes').fetchone()[0])
 
     @responses.activate
     def test_broken_xml2(self):
-        self.pm.cfg.podcasts = ['http://localhost/op1']
-        self.pm.cfg.image_path = 'images'
+        self.podcast_manager.cfg.podcasts = ['http://localhost/op1']
+        self.podcast_manager.cfg.image_path = 'images'
         responses.add(responses.GET, 'http://localhost/op1', body='<rss><channel><title>X</title><item><enclosure url="xxx"/></item></channel></rss>')
-        self.pm.check_podcasts(True)
+        self.podcast_manager.update_podcast_list(True)
         self.assertEqual(1, self.db.cursor().execute('SELECT count(*) FROM episodes').fetchone()[0])
 
 class ChooseEpisodesToDownload(BaseTest):
@@ -168,13 +168,13 @@ class ChooseEpisodesToDownload(BaseTest):
     @responses.activate
     def test_simple(self):
         cfg = config.Config()
-        self.pm.cfg.podcasts = ['http://localhost/op1']
-        self.pm.cfg.image_path = 'images'
-        self.pm.cfg.keep_episodes = 5
+        self.podcast_manager.cfg.podcasts = ['http://localhost/op1']
+        self.podcast_manager.cfg.image_path = 'images'
+        self.podcast_manager.cfg.keep_episodes = 5
         responses.add(responses.GET, 'http://localhost/op1', body=podcast1_xml)
         responses.add(responses.GET, 'http://localhost/image.jpg', b'My image')
-        self.pm.check_podcasts(True)
-        self.pm.download_episodes()
+        self.podcast_manager.update_podcast_list(True)
+        self.podcast_manager.mark_episodes_for_download()
         self.assertEqual(2, self.db.cursor().execute('SELECT count(*) FROM downloads').fetchone()[0])
         ptitle, etitle = self.db.cursor().execute("SELECT podcast_title, episode_title FROM downloads WHERE url='https://localhost/episode1.mp3'").fetchone()
         self.assertEqual('My podcast', ptitle)
@@ -184,27 +184,27 @@ class ChooseEpisodesToDownload(BaseTest):
 
     @responses.activate
     def test_just_one(self):
-        self.pm.cfg.podcasts = ['http://localhost/op1']
-        self.pm.cfg.image_path = 'images'
-        self.pm.cfg.keep_episodes = 1
+        self.podcast_manager.cfg.podcasts = ['http://localhost/op1']
+        self.podcast_manager.cfg.image_path = 'images'
+        self.podcast_manager.cfg.keep_episodes = 1
         responses.add(responses.GET, 'http://localhost/op1', body=podcast1_xml)
         responses.add(responses.GET, 'http://localhost/image.jpg', b'My image')
-        self.pm.check_podcasts(True)
-        self.pm.download_episodes()
+        self.podcast_manager.update_podcast_list(True)
+        self.podcast_manager.mark_episodes_for_download()
         self.assertEqual(1, self.db.cursor().execute('SELECT count(*) FROM downloads').fetchone()[0])
         url = self.db.cursor().execute("SELECT url FROM downloads").fetchone()[0]
         self.assertEqual('https://localhost/episode2.mp3', url)  # latest episode first
 
     @responses.activate
     def test_new_episode_downloaded(self):
-        self.pm.cfg.podcasts = ['http://localhost/op1']
-        self.pm.cfg.image_path = 'images'
-        self.pm.cfg.keep_episodes = 1
+        self.podcast_manager.cfg.podcasts = ['http://localhost/op1']
+        self.podcast_manager.cfg.image_path = 'images'
+        self.podcast_manager.cfg.keep_episodes = 1
         responses.add(responses.GET, 'http://localhost/op1', body=podcast1_xml)
         responses.add(responses.GET, 'http://localhost/image.jpg', b'My image')
         # loop
-        self.pm.check_podcasts(True)
-        self.pm.download_episodes()
+        self.podcast_manager.update_podcast_list(True)
+        self.podcast_manager.mark_episodes_for_download()
         self.assertEqual(1, self.db.cursor().execute('SELECT count(*) FROM downloads').fetchone()[0])
         url = self.db.cursor().execute("SELECT url FROM downloads").fetchone()[0]
         self.assertEqual('https://localhost/episode2.mp3', url)  # latest episode first
@@ -212,8 +212,8 @@ class ChooseEpisodesToDownload(BaseTest):
         self.db.cursor().execute('UPDATE episodes SET downloaded = 1 WHERE episode_url = ?', (url,))
         self.db.commit()
         # loop again, it should not change anything
-        self.pm.check_podcasts(True)
-        self.pm.download_episodes()
+        self.podcast_manager.update_podcast_list(True)
+        self.podcast_manager.mark_episodes_for_download()
         self.assertEqual(1, self.db.cursor().execute('SELECT count(*) FROM downloads').fetchone()[0])
         url = self.db.cursor().execute("SELECT url FROM downloads").fetchone()[0]
         self.assertEqual('https://localhost/episode2.mp3', url)  # latest episode first
@@ -227,33 +227,33 @@ class ChooseEpisodesToDownload(BaseTest):
         self.db.cursor().execute("DELETE FROM downloads")
         self.db.commit()
         # loop again
-        self.pm.download_episodes()
+        self.podcast_manager.mark_episodes_for_download()
         # now, the episode 3 must be set for download -- let's assume is downloaded
         self.assertEqual(1, self.db.cursor().execute('SELECT count(*) FROM downloads').fetchone()[0])
         self.assertEqual('My Episode 3', self.db.cursor().execute('SELECT episode_title FROM downloads').fetchone()[0])
         self.db.cursor().execute("UPDATE episodes SET downloaded=1 WHERE episode_url='https://localhost/episode3.mp3'")
         self.db.commit()
         # on the next loop, episode 2 must be set for remove
-        self.pm.download_episodes()
+        self.podcast_manager.mark_episodes_for_download()
         self.assertEqual(1, self.db.cursor().execute('SELECT count(*) FROM to_remove').fetchone()[0])
         self.assertEqual('https://localhost/episode2.mp3', self.db.cursor().execute('SELECT url FROM to_remove').fetchone()[0])
 
     @responses.activate
     def test_keep_episodes(self):
-        self.pm.cfg.podcasts = ['http://localhost/op1']
-        self.pm.cfg.image_path = 'images'
-        self.pm.cfg.keep_episodes = 1
+        self.podcast_manager.cfg.podcasts = ['http://localhost/op1']
+        self.podcast_manager.cfg.image_path = 'images'
+        self.podcast_manager.cfg.keep_episodes = 1
         responses.add(responses.GET, 'http://localhost/op1', body=podcast1_xml)
         responses.add(responses.GET, 'http://localhost/image.jpg', b'My image')
         # loop
-        self.pm.check_podcasts(True)
-        self.pm.download_episodes()
+        self.podcast_manager.update_podcast_list(True)
+        self.podcast_manager.mark_episodes_for_download()
         # mark episode 2 as downloaded, and also as kept
         self.db.cursor().execute('UPDATE episodes SET keep = 1 WHERE episode_url = ?', ('https://localhost/episode2.mp3',))
         self.db.commit()
         # loop again, and assume episode 2 was downloaded
-        self.pm.check_podcasts(True)
-        self.pm.download_episodes()
+        self.podcast_manager.update_podcast_list(True)
+        self.podcast_manager.mark_episodes_for_download()
         self.db.cursor().execute('UPDATE episodes SET downloaded = 1 WHERE episode_url = ?', ('https://localhost/episode2.mp3',))
         self.db.cursor().execute("DELETE FROM downloads")
         self.db.commit()
@@ -264,13 +264,13 @@ class ChooseEpisodesToDownload(BaseTest):
         self.db.commit()
         # loop again
         self.assertEqual(0, self.db.cursor().execute('SELECT count(*) FROM downloads').fetchone()[0])
-        self.pm.download_episodes()
+        self.podcast_manager.mark_episodes_for_download()
         # now, the episode 3 must be set for download -- let's assume is downloaded
         self.assertEqual(1, self.db.cursor().execute('SELECT count(*) FROM downloads').fetchone()[0])
         self.assertEqual('My Episode 3', self.db.cursor().execute('SELECT episode_title FROM downloads').fetchone()[0])
         self.db.cursor().execute("UPDATE episodes SET downloaded=1 WHERE episode_url='https://localhost/episode3.mp3'")
         self.db.commit()
         # on the next loop, episode 2 must NOT be set for remove
-        self.pm.download_episodes()
+        self.podcast_manager.mark_episodes_for_download()
         self.assertEqual(0, self.db.cursor().execute('SELECT count(*) FROM to_remove').fetchone()[0])
 

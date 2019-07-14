@@ -10,13 +10,28 @@ import requests
 import sys
 import threading
 import xml.etree.ElementTree as ET  
-from dataclasses import dataclass
+from dataclasses import *
 from email.utils import parsedate_tz
 from requests.exceptions import HTTPError
 from pprint import pprint
+from typing import List
 
 import config
 import db
+
+@dataclass
+class Podcast:
+    title:      str = ""
+    image_path: str = None
+    episodes:   List[str] = field(default_factory=list)
+
+@dataclass
+class Episode:
+    url:    str = ""
+    title:  str = ""
+    nbytes: int = 0
+    date:   int = 0
+    length: int = 0
 
 class PodcastManager:
 
@@ -24,8 +39,8 @@ class PodcastManager:
         self.cfg = cfg
         self.db = db
 
-    def check_podcasts(self, throw_exceptions=False):
-        urls = self.__check_config_against_db()
+    def update_podcast_list(self, throw_exceptions=False):
+        urls = self.__update_db_from_config()
         for url in urls:
             try:
                 xml = self.__download_podcast_rss(url)
@@ -41,7 +56,7 @@ class PodcastManager:
                     raise e
                 continue
 
-    def download_episodes(self):
+    def mark_episodes_for_download(self):
         for row in self.db.cursor().execute('SELECT url, keep_episodes FROM podcasts'):
             url = row[0]
             self.__remove_old_podcast_episodes(url, row[1])
@@ -51,7 +66,7 @@ class PodcastManager:
     # private: podcasts
     #
 
-    def __check_config_against_db(self):
+    def __update_db_from_config(self):
         c = self.db.cursor()
         urls_in_db = []
         # URLs in db but not in config - delete from DB
@@ -80,26 +95,14 @@ class PodcastManager:
         return response.content
 
     def __parse_podcast_rss(self, xml):
-        class PodcastInfo:
-            pass
-        @dataclass
-        class Episode:
-            url:    str = ""
-            title:  str = ""
-            nbytes: int = 0
-            date:   int = 0
-            length: int = 0
-        info = PodcastInfo()
-        info.title = None
-        info.image_path = None
+        podcast = Podcast()
         root = ET.fromstring(xml)
         title_element = root.find('./channel/title')
         if title_element is not None:
-            info.title = title_element.text
-            info.episodes = []
+            podcast.title = title_element.text
             image_element = root.find('./channel/image/url')
             if image_element is not None:
-                info.image_path = image_element.text
+                podcast.image_path = image_element.text
             for item in root.findall('./channel/item'):
                 ep = Episode()
                 enclosure = item.find('enclosure')
@@ -122,9 +125,9 @@ class PodcastManager:
                         ep.length = item.find('{http://www.itunes.com/dtds/podcast-1.0.dtd}duration').text
                     except AttributeError:
                         pass
-                    info.episodes.append(ep)
-            logging.info('Parsed data from podcast RSS: ' + info.title + ' (' + str(len(info.episodes)) + ' episodes)')
-            return info
+                    podcast.episodes.append(ep)
+            logging.info('Parsed data from podcast RSS: ' + podcast.title + ' (' + str(len(podcast.episodes)) + ' episodes)')
+            return podcast
         else:
             return None
 
@@ -212,8 +215,8 @@ if __name__ == '__main__':
         logging.info('-------------------------------------------------------')
         logging.info('Executing loop...')
         self.cfg = config.Config().read_config_file('download.ini')
-        check_podcasts(self.cfg, db)
-        download_episodes(db, self.cfg)
+        update_podcast_list(self.cfg, db)
+        mark_episodes_for_download(db, self.cfg)
         logging.info('Waiting for next loop...')
         time.sleep(120)
 
