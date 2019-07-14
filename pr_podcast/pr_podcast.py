@@ -7,6 +7,7 @@ import sqlite3
 import time
 import pprint
 import requests
+import sys
 import threading
 import xml.etree.ElementTree as ET  
 from dataclasses import dataclass
@@ -14,59 +15,8 @@ from email.utils import parsedate_tz
 from requests.exceptions import HTTPError
 from pprint import pprint
 
-
-# DATABASE #####################################################################
-
-def create_database_objects(conn):
-    conn.cursor().execute('''
-        CREATE TABLE IF NOT EXISTS podcasts (
-            url           TEXT PRIMARY KEY,
-            title         TEXT,
-            image_path    TEXT,
-            keep_episodes INTEGER   DEFAULT 5,
-            last_status   INTEGER,
-            error         TEXT
-        );
-    ''')
-    conn.cursor().execute('''
-        CREATE TABLE IF NOT EXISTS episodes (
-            podcast_url   TEXT,
-            episode_url   TEXT,
-            title         TEXT,
-            date          INTEGER,
-            length        TEXT,
-            nbytes        INTEGER,
-            downloaded    BOOLEAN   DEFAULT 0,
-            keep          BOOLEAN   DEFAULT 0,
-            PRIMARY KEY(podcast_url, episode_url),
-            FOREIGN KEY(podcast_url) REFERENCES podcasts(url)
-        );
-    ''')
-    conn.cursor().execute('''
-        CREATE TABLE IF NOT EXISTS downloads (
-            url             TEXT     PRIMARY KEY,
-            episode_rowid   INTEGER  UNIQUE,
-            podcast_title   TEXT,
-            episode_title   TEXT,
-            thread          INTEGER  DEFAULT NULL,
-            episode_size    INTEGER  DEFAULT NULL,
-            bytes_downd     INTEGER  DEFAULT 0,
-            last_status     INTEGER,
-            FOREIGN KEY(url) REFERENCES episodes(episode_url)
-        );
-    ''')
-    conn.cursor().execute('''
-        CREATE TABLE IF NOT EXISTS to_remove (
-            url             TEXT    PRIMARY KEY,
-            FOREIGN KEY(url) REFERENCES episodes(episode_url)
-        );
-    ''')
-
-def open_database():
-    conn = sqlite3.connect('podcastradio.db')
-    create_database_objects(conn)
-    return conn
-
+import config
+import db
 
 # PODCASTS #####################################################################
 
@@ -249,13 +199,13 @@ def download_episodes(db, cfg):
 
 if __name__ == '__main__':
     logging.basicConfig(level='INFO')
-    db  = open_database()
-    cfg = read_config_file('download.ini')
+    cfg = config.Config().read_config_file('download.ini')
+    db  = db.open_database(cfg)
 
     while True:
         logging.info('-------------------------------------------------------')
         logging.info('Executing loop...')
-        cfg = read_config_file('download.ini')
+        cfg = config.Config().read_config_file('download.ini')
         check_podcasts(cfg, db)
         download_episodes(db, cfg)
         logging.info('Waiting for next loop...')

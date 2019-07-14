@@ -1,4 +1,6 @@
 from pr_podcast import *
+import config
+import db
 import pprint
 import os
 import responses
@@ -9,8 +11,7 @@ import unittest
 class BaseTest(unittest.TestCase):
 
     def setUp(self):
-        self.db = sqlite3.connect(':memory:')
-        create_database_objects(self.db)
+        self.db = db.open_database(database_file=':memory:')
 
     def tearDown(self):
         self.db.close()
@@ -19,13 +20,13 @@ class BaseTest(unittest.TestCase):
 class TestCheckPodcasts(BaseTest):
 
     def test_no_podcasts(self):
-        cfg = Config()
+        cfg = config.Config()
         check_podcasts(cfg, self.db, True)
         self.assertEqual(self.db.cursor().execute('SELECT count(*) FROM podcasts').fetchone()[0], 0)
 
     @responses.activate
     def test_empty_rss(self):
-        cfg = Config()
+        cfg = config.Config()
         cfg.podcasts = ['http://localhost/op1']
         responses.add(responses.GET, 'http://localhost/op1', body='<?xml version="1.1"?><!DOCTYPE _[<!ELEMENT _ EMPTY>]><_/>', status=200)
         check_podcasts(cfg, self.db, True)
@@ -33,7 +34,7 @@ class TestCheckPodcasts(BaseTest):
 
     @responses.activate
     def test_title_only(self):
-        cfg = Config()
+        cfg = config.Config()
         cfg.podcasts = ['http://localhost/op1']
         responses.add(responses.GET, 'http://localhost/op1', body='''
             <rss>
@@ -49,7 +50,7 @@ class TestCheckPodcasts(BaseTest):
 
     @responses.activate
     def test_failed(self):
-        cfg = Config()
+        cfg = config.Config()
         cfg.podcasts = ['http://localhost/op1']
         responses.add(responses.GET, 'http://localhost/op1', body='Not found', status=404)
         check_podcasts(cfg, self.db)
@@ -59,7 +60,7 @@ class TestCheckPodcasts(BaseTest):
     
     @responses.activate
     def test_remove_podcast(self):
-        cfg = Config()
+        cfg = config.Config()
         cfg.podcasts = ['http://localhost/op1']
         responses.add(responses.GET, 'http://localhost/op1', body='<?xml version="1.1"?><!DOCTYPE _[<!ELEMENT _ EMPTY>]><_/>', status=200)
         check_podcasts(cfg, self.db, True)
@@ -72,7 +73,7 @@ class TestCheckPodcasts(BaseTest):
     def test_image(self):
         tempdir = '/tmp/test_image'
         try:
-            cfg = Config()
+            cfg = config.Config()
             cfg.podcasts = ['http://localhost/op1']
             cfg.image_path = tempdir
             responses.add(responses.GET, 'http://localhost/op1', body='''
@@ -96,7 +97,7 @@ class TestCheckPodcasts(BaseTest):
 
     @responses.activate
     def test_broken_xml(self):
-        cfg = Config()
+        cfg = config.Config()
         cfg.podcasts = ['http://localhost/op1']
         responses.add(responses.GET, 'http://localhost/op1', body='''
             <rss>
@@ -134,7 +135,7 @@ class TestCheckEpisodes(BaseTest):
 
     @responses.activate
     def test_episodes(self):
-        cfg = Config()
+        cfg = config.Config()
         cfg.podcasts = ['http://localhost/op1']
         cfg.image_path = 'images'
         responses.add(responses.GET, 'http://localhost/op1', body=podcast1_xml)
@@ -154,7 +155,7 @@ class TestCheckEpisodes(BaseTest):
 
     @responses.activate
     def test_broken_xml1(self):
-        cfg = Config()
+        cfg = config.Config()
         cfg.podcasts = ['http://localhost/op1']
         cfg.image_path = 'images'
         responses.add(responses.GET, 'http://localhost/op1', body='<rss><channel><title>X</title><item></item></channel></rss>')
@@ -163,7 +164,7 @@ class TestCheckEpisodes(BaseTest):
 
     @responses.activate
     def test_broken_xml2(self):
-        cfg = Config()
+        cfg = config.Config()
         cfg.podcasts = ['http://localhost/op1']
         cfg.image_path = 'images'
         responses.add(responses.GET, 'http://localhost/op1', body='<rss><channel><title>X</title><item><enclosure url="xxx"/></item></channel></rss>')
@@ -174,7 +175,7 @@ class ChooseEpisodesToDownload(BaseTest):
 
     @responses.activate
     def test_simple(self):
-        cfg = Config()
+        cfg = config.Config()
         cfg.podcasts = ['http://localhost/op1']
         cfg.image_path = 'images'
         cfg.keep_episodes = 5
@@ -191,7 +192,7 @@ class ChooseEpisodesToDownload(BaseTest):
 
     @responses.activate
     def test_just_one(self):
-        cfg = Config()
+        cfg = config.Config()
         cfg.podcasts = ['http://localhost/op1']
         cfg.image_path = 'images'
         cfg.keep_episodes = 1
@@ -205,7 +206,7 @@ class ChooseEpisodesToDownload(BaseTest):
 
     @responses.activate
     def test_new_episode_downloaded(self):
-        cfg = Config()
+        cfg = config.Config()
         cfg.podcasts = ['http://localhost/op1']
         cfg.image_path = 'images'
         cfg.keep_episodes = 1
@@ -249,7 +250,7 @@ class ChooseEpisodesToDownload(BaseTest):
 
     @responses.activate
     def test_keep_episodes(self):
-        cfg = Config()
+        cfg = config.Config()
         cfg.podcasts = ['http://localhost/op1']
         cfg.image_path = 'images'
         cfg.keep_episodes = 1

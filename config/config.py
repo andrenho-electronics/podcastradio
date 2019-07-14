@@ -8,6 +8,7 @@ from dataclasses import *
 class Config:
     podcasts:         List[str] = field(default_factory=list)
     keep_episodes:    int = 5
+    database_file:    str = '/var/db/podcastradio/podcastradio.db'
     download_path:    str = '/var/db/podcastradio/download'
     image_path:       str = '/var/db/podcastradio/images'
     download_threads: int = 3
@@ -39,8 +40,12 @@ class Config:
         except KeyError:
             pass
         try:
+            self.database_file = config['config']['database_file']
+            os.makedirs(os.path.dirname(self.database_file), exist_ok=True)
+        except KeyError:
+            pass
+        try:
             self.download_threads = int(config['config']['download_threads'])
         except KeyError:
             pass
         return self
-
