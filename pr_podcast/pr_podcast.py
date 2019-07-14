@@ -14,46 +14,6 @@ from email.utils import parsedate_tz
 from requests.exceptions import HTTPError
 from pprint import pprint
 
-# CONFIG #######################################################################
-
-class Config:
-    def __init__(self):
-        self.podcasts = []
-        self.keep_episodes = 5
-        self.download_path = '/var/db/podcastradio/download'
-        self.image_path = '/var/db/podcastradio/images'
-        self.download_threads = 3
-
-def read_config_file(filename):
-    cfg = Config()
-    config = configparser.ConfigParser(delimiters=('=',), allow_no_value=True)
-    if len(config.read(filename)) == 0:
-        raise Excpetion('File ' + filename + ' not found.')
-    try:
-        for key in config['podcasts']:
-            cfg.podcasts.append(key)
-    except KeyError:
-        pass
-    try:
-        cfg.keep_episodes = int(config['config']['keep_episodes'])
-    except KeyError:
-        pass
-    try:
-        cfg.download_path = config['config']['download_path']
-        os.makedirs(cfg.download_path, exist_ok=True)
-    except KeyError:
-        pass
-    try:
-        cfg.image_path = config['config']['image_path']
-        os.makedirs(cfg.image_path, exist_ok=True)
-    except KeyError:
-        pass
-    try:
-        cfg.download_threads = int(config['config']['download_threads'])
-    except KeyError:
-        pass
-    return cfg
-
 
 # DATABASE #####################################################################
 
