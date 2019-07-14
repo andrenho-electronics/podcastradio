@@ -18,39 +18,68 @@ from pprint import pprint
 import config
 import db
 
-# PODCASTS #####################################################################
+class PodcastManager:
 
-def check_podcasts(cfg, db, throw_exceptions=False):
+    def __init__(self, cfg, db):
+        self.cfg = cfg
+        self.db = db
 
-    def check_config_against_db(cfg, db):
-        c = db.cursor()
+    def check_podcasts(self, throw_exceptions=False):
+        urls = self.__check_config_against_db()
+        for url in urls:
+            try:
+                xml = self.__download_podcast_rss(url)
+                info = self.__parse_podcast_rss(xml)
+                if info:
+                    self.__update_image(url, info)
+                    self.__update_podcast_database(url, info)
+            except Exception as e:
+                self.db.cursor().execute('UPDATE podcasts SET error = ? WHERE url = ?', (str(e), url))
+                self.db.commit()
+                logging.warning(str(e))
+                if throw_exceptions:
+                    raise e
+                continue
+
+    def download_episodes(self):
+        for row in self.db.cursor().execute('SELECT url, keep_episodes FROM podcasts'):
+            url = row[0]
+            self.__remove_old_podcast_episodes(url, row[1])
+            self.__download_new_podcast_episodes(url)
+
+    # 
+    # private: podcasts
+    #
+
+    def __check_config_against_db(self):
+        c = self.db.cursor()
         urls_in_db = []
         # URLs in db but not in config - delete from DB
         for row in c.execute('SELECT url FROM podcasts'):
-            if row[0] not in cfg.podcasts:
+            if row[0] not in self.cfg.podcasts:
                 c.execute('DELETE FROM podcasts WHERE url=?', (row[0],))
                 logging.info('URL ' + row[0] + ' was deleted from database.')
             else:
                 urls_in_db.append(row[0])
         # URLs in config but not in db - insert to db
-        for url in cfg.podcasts:
+        for url in self.cfg.podcasts:
             if url not in urls_in_db:
                 c.execute('INSERT INTO podcasts ( url, keep_episodes ) VALUES ( ?, ? )',
-                        (url, cfg.keep_episodes))
+                        (url, self.cfg.keep_episodes))
                 urls_in_db.append(url)
                 logging.info('URL ' + url + ' was inserted into database.')
-        db.commit()
+        self.db.commit()
         return urls_in_db
 
-    def download_podcast_rss(url):
+    def __download_podcast_rss(self, url):
         response = requests.get(url)
-        db.cursor().execute('UPDATE podcasts SET last_status = ? WHERE url = ?', (response.status_code, url))
-        db.commit()
+        self.db.cursor().execute('UPDATE podcasts SET last_status = ? WHERE url = ?', (response.status_code, url))
+        self.db.commit()
         response.raise_for_status()
         logging.info('Podcast XML file downloaded from URL ' + url)
         return response.content
 
-    def parse_podcast_rss(xml):
+    def __parse_podcast_rss(self, xml):
         class PodcastInfo:
             pass
         @dataclass
@@ -99,10 +128,10 @@ def check_podcasts(cfg, db, throw_exceptions=False):
         else:
             return None
 
-    def update_image(cfg, url, db, info):
+    def __update_image(self, url, info):
         current_image = None
         try:
-            current_image = db.cursor().execute('SELECT image_path FROM podcasts WHERE url = ?', (url,)).fetchone()[0]
+            current_image = self.db.cursor().execute('SELECT image_path FROM podcasts WHERE url = ?', (url,)).fetchone()[0]
         except:
             return
         if info.image_path != current_image:
@@ -113,51 +142,34 @@ def check_podcasts(cfg, db, throw_exceptions=False):
                 logging.warning('Error loading image file from URL ' + info.image_path)
                 return
             filename = info.image_path[info.image_path.rfind("/")+1:]
-            os.makedirs(cfg.image_path, exist_ok=True)
-            full_filename = cfg.image_path + '/' + filename
-            with open(cfg.image_path + '/' + filename, 'wb') as f:
+            os.makedirs(self.cfg.image_path, exist_ok=True)
+            full_filename = self.cfg.image_path + '/' + filename
+            with open(self.cfg.image_path + '/' + filename, 'wb') as f:
                 for chunk in response.iter_content(chunk_size=128):
                     f.write(chunk)
-            info.image_path = cfg.image_path + '/' + filename
+            info.image_path = self.cfg.image_path + '/' + filename
             logging.info('Podcast image file downloaded from URL ' + info.image_path)
 
-    def update_podcast_database(url, db, info):
-        db.cursor().execute('''
+    def __update_podcast_database(self, url, info):
+        self.db.cursor().execute('''
             UPDATE podcasts
                SET title = ?,
                    image_path = ?
              WHERE url = ?''', (info.title, info.image_path, url))
         for ep in info.episodes:
-            db.cursor().execute('''
+            self.db.cursor().execute('''
                 INSERT OR IGNORE INTO episodes ( podcast_url, episode_url, title, date, length, nbytes )
                                 VALUES ( ?, ?, ?, ?, ?, ? )''',
                 (url, ep.url, ep.title, ep.date, ep.length, ep.nbytes))
-        db.commit()
+        self.db.commit()
         logging.info('Tables updated for podcast ' + info.title)
 
-    urls = check_config_against_db(cfg, db)
-    for url in urls:
-        try:
-            xml = download_podcast_rss(url)
-            info = parse_podcast_rss(xml)
-            if info:
-                update_image(cfg, url, db, info)
-                update_podcast_database(url, db, info)
-        except Exception as e:
-            db.cursor().execute('UPDATE podcasts SET error = ? WHERE url = ?', (str(e), url))
-            db.commit()
-            logging.warning(str(e))
-            if throw_exceptions:
-                raise e
-            continue
+    #
+    # private: episodes
+    #
 
-
-# EPISODES #####################################################################
-
-def download_episodes(db, cfg):
-
-    def remove_old_podcast_episodes(url, keep, db, cfg):
-        db.cursor().execute('''
+    def __remove_old_podcast_episodes(self, url, keep):
+        self.db.cursor().execute('''
             INSERT OR IGNORE INTO to_remove ( url )
                            SELECT episode_url
                              FROM episodes
@@ -166,11 +178,11 @@ def download_episodes(db, cfg):
                               AND downloaded = 1
                          ORDER BY date DESC
                             LIMIT -1 OFFSET ?''', (url, keep))
-        db.commit()
+        self.db.commit()
         logging.info('Episodes marked to remove')
 
-    def download_new_podcast_episodes(url, db):
-        db.cursor().execute('''
+    def __download_new_podcast_episodes(self, url):
+        self.db.cursor().execute('''
             INSERT OR IGNORE INTO downloads ( url, podcast_title, episode_title, episode_rowid )
                            SELECT episode_url, ptitle, etitle, erowid
                              FROM     (SELECT episode_url, p.title ptitle, e.title etitle, e.rowid erowid, downloaded
@@ -186,28 +198,22 @@ def download_episodes(db, cfg):
                        INNER JOIN podcasts p ON p.url = e.podcast_url
                             WHERE e.podcast_url = ?
                               AND downloaded = 0
-                              AND keep = 1''', (url, cfg.keep_episodes, url))
-        db.commit()
-
-    for row in db.cursor().execute('SELECT url, keep_episodes FROM podcasts'):
-        url = row[0]
-        remove_old_podcast_episodes(url, row[1], db, cfg)
-        download_new_podcast_episodes(url, db)
-
+                              AND keep = 1''', (url, self.cfg.keep_episodes, url))
+        self.db.commit()
 
 # MAIN #########################################################################
 
 if __name__ == '__main__':
     logging.basicConfig(level='INFO')
-    cfg = config.Config().read_config_file('download.ini')
-    db  = db.open_database(cfg)
+    self.cfg = config.Config().read_config_file('download.ini')
+    db  = db.open_database(self.cfg)
 
     while True:
         logging.info('-------------------------------------------------------')
         logging.info('Executing loop...')
-        cfg = config.Config().read_config_file('download.ini')
-        check_podcasts(cfg, db)
-        download_episodes(db, cfg)
+        self.cfg = config.Config().read_config_file('download.ini')
+        check_podcasts(self.cfg, db)
+        download_episodes(db, self.cfg)
         logging.info('Waiting for next loop...')
         time.sleep(120)
 
