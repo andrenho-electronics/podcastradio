@@ -1,6 +1,7 @@
 - write tests
+  - parse types
   - refactor
-    - inadequate names
+    - inadequate names (ok)
     - duplicated code
     - large methods
     - large classes
