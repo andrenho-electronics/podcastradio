@@ -1,12 +1,12 @@
-from pr_podcast import *
-import config
-import db
 import pprint
 import os
 import responses
 import sqlite3
 import tempfile
 import unittest
+import common.config as config
+import common.db as db
+from pr_podcast.pr_podcast import *
 
 class BaseTest(unittest.TestCase):
 

@@ -1,5 +1,5 @@
 import unittest
-from db import open_database
+from common.db import open_database
 
 class TestDB(unittest.TestCase):
 

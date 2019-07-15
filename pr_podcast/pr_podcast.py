@@ -16,10 +16,8 @@ from requests.exceptions import HTTPError
 from pprint import pprint
 from typing import List
 
-sys.path.append('config')
-import config
-sys.path.append('db')
-import db
+import common.config
+import common.db
 
 @dataclass
 class Podcast:
