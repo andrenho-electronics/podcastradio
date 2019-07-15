@@ -1,12 +1,11 @@
 - write tests
-  - parse types
   - refactor
     - inadequate names (ok)
-    - duplicated code
-    - large methods
-    - large classes
+    - duplicated code (ok)
+    - large methods (ok)
+    - large classes (ok)
+- move initial SQL to a single location (ok)
 - move logging to syslog
-- move initial SQL to a single location
 - move to a single ini
 - invert tests orders
 - remove directories after test

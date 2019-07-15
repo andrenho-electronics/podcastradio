@@ -51,4 +51,4 @@ class Config:
     def __create_directories(self):
         os.makedirs(self.download_path, exist_ok=True)
         os.makedirs(self.image_path, exist_ok=True)
-        os.makedirs(os.path.dirname(self.database_file), exist_ok=True)
+        os.makedirs(os.path.dirname(self.database_file) or '.', exist_ok=True)

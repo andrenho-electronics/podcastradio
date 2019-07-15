@@ -16,7 +16,9 @@ from requests.exceptions import HTTPError
 from pprint import pprint
 from typing import List
 
+sys.path.append('config')
 import config
+sys.path.append('db')
 import db
 
 @dataclass
@@ -32,6 +34,12 @@ class Episode:
     nbytes: int = 0
     date:   int = 0
     length: int = 0
+
+def none_if_error(lazy_value):
+    try:
+        return lazy_value()
+    except Exception:
+        return None
 
 class PodcastManager:
 
@@ -95,37 +103,23 @@ class PodcastManager:
         return response.content
 
     def __parse_podcast_rss(self, xml):
-        podcast = Podcast()
         root = ET.fromstring(xml)
         title_element = root.find('./channel/title')
         if title_element is not None:
-            podcast.title = title_element.text
-            image_element = root.find('./channel/image/url')
-            if image_element is not None:
-                podcast.image_path = image_element.text
+            podcast = Podcast(
+                title = title_element.text,
+                image_path = none_if_error(lambda: root.find('./channel/image/url').text)
+            )
             for item in root.findall('./channel/item'):
-                ep = Episode()
                 enclosure = item.find('enclosure')
                 if enclosure is not None:
-                    ep.url = enclosure.attrib['url']
-                    # TODO - fix this sequence of tries
-                    try:
-                        ep.title = item.find('title').text
-                    except Exception:
-                        pass
-                    try:
-                        ep.nbytes = int(enclosure.attrib['length'])
-                    except Exception:
-                        pass
-                    try:
-                        ep.date = int(time.mktime(parsedate_tz(item.find('pubDate').text)[0:9]))  # date in unix timestamp format
-                    except Exception:
-                        pass
-                    try:
-                        ep.length = item.find('{http://www.itunes.com/dtds/podcast-1.0.dtd}duration').text
-                    except AttributeError:
-                        pass
-                    podcast.episodes.append(ep)
+                    podcast.episodes.append(Episode(
+                        url    = enclosure.attrib['url'],
+                        title  = none_if_error(lambda: item.find('title').text),
+                        nbytes = none_if_error(lambda: int(enclosure.attrib['length'])),
+                        date   = none_if_error(lambda: int(time.mktime(parsedate_tz(item.find('pubDate').text)[0:9]))),  # date in unix timestamp format
+                        length = none_if_error(lambda: item.find('{http://www.itunes.com/dtds/podcast-1.0.dtd}duration').text)
+                    ))
             logging.info('Parsed data from podcast RSS: ' + podcast.title + ' (' + str(len(podcast.episodes)) + ' episodes)')
             return podcast
         else:
@@ -139,9 +133,7 @@ class PodcastManager:
             return
         if info.image_path != current_image:
             response = requests.get(info.image_path)
-            try:
-                response.raise_for_status()
-            except:
+            if not response.ok:
                 logging.warning('Error loading image file from URL ' + info.image_path)
                 return
             filename = info.image_path[info.image_path.rfind("/")+1:]
@@ -203,21 +195,5 @@ class PodcastManager:
                               AND downloaded = 0
                               AND keep = 1''', (url, self.cfg.keep_episodes, url))
         self.db.commit()
-
-# MAIN #########################################################################
-
-if __name__ == '__main__':
-    logging.basicConfig(level='INFO')
-    self.cfg = config.Config().read_config_file('download.ini')
-    db  = db.open_database(self.cfg)
-
-    while True:
-        logging.info('-------------------------------------------------------')
-        logging.info('Executing loop...')
-        self.cfg = config.Config().read_config_file('download.ini')
-        update_podcast_list(self.cfg, db)
-        mark_episodes_for_download(db, self.cfg)
-        logging.info('Waiting for next loop...')
-        time.sleep(120)
 
 # vim: foldmethod=marker
