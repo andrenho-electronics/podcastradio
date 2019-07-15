@@ -26,6 +26,7 @@ class Config:
         self.download_threads = self.__parse_field(config, 'config', 'download_threads', 3, int)
         if create_directories:
             self.__create_directories()
+        return self
 
     def __load_podcasts(self, config):
         podcasts = []
