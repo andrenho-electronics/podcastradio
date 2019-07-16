@@ -108,9 +108,6 @@ podcast1_xml = '''
 <rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:media="http://search.yahoo.com/mrss" version="2.0">
     <channel>
         <title>My podcast</title>
-        <image>
-            <url>http://localhost/image.jpg</url>
-        </image>
         <item>
             <title>Episode 1</title>
             <pubDate>Wed, 10 Jul 2019 13:01:37 -0300</pubDate>
@@ -133,7 +130,6 @@ class TestCheckEpisodes(BaseTest):
         self.podcast_manager.cfg.podcasts = ['http://localhost/op1']
         self.podcast_manager.cfg.image_path = 'images'
         responses.add(responses.GET, 'http://localhost/op1', body=podcast1_xml)
-        responses.add(responses.GET, 'http://localhost/image.jpg', b'My image')
         self.podcast_manager.update_podcast_list(True)
         self.assertEqual(2, self.db.cursor().execute('SELECT count(*) FROM episodes').fetchone()[0])
         podcast_url, title, date, length, nbytes, downloaded, keep = \
@@ -172,7 +168,6 @@ class ChooseEpisodesToDownload(BaseTest):
         self.podcast_manager.cfg.image_path = 'images'
         self.podcast_manager.cfg.keep_episodes = 5
         responses.add(responses.GET, 'http://localhost/op1', body=podcast1_xml)
-        responses.add(responses.GET, 'http://localhost/image.jpg', b'My image')
         self.podcast_manager.update_podcast_list(True)
         self.podcast_manager.mark_episodes_for_download()
         self.assertEqual(2, self.db.cursor().execute('SELECT count(*) FROM downloads').fetchone()[0])
@@ -188,7 +183,6 @@ class ChooseEpisodesToDownload(BaseTest):
         self.podcast_manager.cfg.image_path = 'images'
         self.podcast_manager.cfg.keep_episodes = 1
         responses.add(responses.GET, 'http://localhost/op1', body=podcast1_xml)
-        responses.add(responses.GET, 'http://localhost/image.jpg', b'My image')
         self.podcast_manager.update_podcast_list(True)
         self.podcast_manager.mark_episodes_for_download()
         self.assertEqual(1, self.db.cursor().execute('SELECT count(*) FROM downloads').fetchone()[0])
@@ -201,7 +195,6 @@ class ChooseEpisodesToDownload(BaseTest):
         self.podcast_manager.cfg.image_path = 'images'
         self.podcast_manager.cfg.keep_episodes = 1
         responses.add(responses.GET, 'http://localhost/op1', body=podcast1_xml)
-        responses.add(responses.GET, 'http://localhost/image.jpg', b'My image')
         # loop
         self.podcast_manager.update_podcast_list(True)
         self.podcast_manager.mark_episodes_for_download()
@@ -244,7 +237,6 @@ class ChooseEpisodesToDownload(BaseTest):
         self.podcast_manager.cfg.image_path = 'images'
         self.podcast_manager.cfg.keep_episodes = 1
         responses.add(responses.GET, 'http://localhost/op1', body=podcast1_xml)
-        responses.add(responses.GET, 'http://localhost/image.jpg', b'My image')
         # loop
         self.podcast_manager.update_podcast_list(True)
         self.podcast_manager.mark_episodes_for_download()

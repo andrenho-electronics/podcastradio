@@ -8,8 +8,8 @@
 - move to a single ini (ok)
 - test and tests directory (ok)
 - move logging to syslog (ok)
-- invert tests orders
-- remove directories after test
+- invert tests orders (ok)
+- remove directories after test (ok)
 
 future:
 - import OPML file
