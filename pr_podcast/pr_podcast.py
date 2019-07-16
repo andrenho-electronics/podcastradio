@@ -16,9 +16,6 @@ from requests.exceptions import HTTPError
 from pprint import pprint
 from typing import List
 
-import common.config
-import common.db
-
 @dataclass
 class Podcast:
     title:      str = ""

@@ -5,8 +5,9 @@
     - large methods (ok)
     - large classes (ok)
 - move initial SQL to a single location (ok)
+- move to a single ini (ok)
+- test and tests directory (ok)
 - move logging to syslog
-- move to a single ini
 - invert tests orders
 - remove directories after test
 

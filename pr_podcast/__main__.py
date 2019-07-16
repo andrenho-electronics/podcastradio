@@ -1,7 +1,7 @@
-import pr_podcast
+import pr_podcast.pr_podcast as pr_podcast
 
-import config
-import db
+import common.config as config
+import common.db as db
 import logging
 import time
 

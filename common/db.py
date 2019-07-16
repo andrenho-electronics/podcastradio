@@ -1,6 +1,5 @@
 import sqlite3
 import sys
-from common.config import Config
 
 def open_database(config=None, database_file=None):
     if database_file is None and config is None:
