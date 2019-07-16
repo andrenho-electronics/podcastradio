@@ -23,14 +23,14 @@ class TestCheckPodcasts(BaseTest):
 
     def test_no_podcasts(self):
         self.podcast_manager.update_podcast_list(True)
-        self.assertEqual(self.db.cursor().execute('SELECT count(*) FROM podcasts').fetchone()[0], 0)
+        self.assertEqual(0, self.db.cursor().execute('SELECT count(*) FROM podcasts').fetchone()[0])
 
     @responses.activate
     def test_empty_rss(self):
         self.podcast_manager.cfg.podcasts = ['http://localhost/op1']
         responses.add(responses.GET, 'http://localhost/op1', body='<?xml version="1.1"?><!DOCTYPE _[<!ELEMENT _ EMPTY>]><_/>', status=200)
         self.podcast_manager.update_podcast_list(True)
-        self.assertEqual(self.db.cursor().execute('SELECT count(*) FROM podcasts').fetchone()[0], 1)
+        self.assertEqual(1, self.db.cursor().execute('SELECT count(*) FROM podcasts').fetchone()[0])
 
     @responses.activate
     def test_title_only(self):
@@ -43,28 +43,28 @@ class TestCheckPodcasts(BaseTest):
             </rss>
         ''', status=200)
         self.podcast_manager.update_podcast_list(True)
-        self.assertEqual(self.db.cursor().execute('SELECT count(*) FROM podcasts').fetchone()[0], 1)
-        self.assertEqual(self.db.cursor().execute('SELECT title FROM podcasts LIMIT 1').fetchone()[0], 'My podcast')
-        self.assertEqual(self.db.cursor().execute('SELECT last_status FROM podcasts LIMIT 1').fetchone()[0], 200)
+        self.assertEqual(1, self.db.cursor().execute('SELECT count(*) FROM podcasts').fetchone()[0])
+        self.assertEqual('My podcast', self.db.cursor().execute('SELECT title FROM podcasts LIMIT 1').fetchone()[0])
+        self.assertEqual(200, self.db.cursor().execute('SELECT last_status FROM podcasts LIMIT 1').fetchone()[0])
 
     @responses.activate
     def test_failed(self):
         self.podcast_manager.cfg.podcasts = ['http://localhost/op1']
         responses.add(responses.GET, 'http://localhost/op1', body='Not found', status=404)
         self.podcast_manager.update_podcast_list()
-        self.assertEqual(self.db.cursor().execute('SELECT count(*) FROM podcasts').fetchone()[0], 1)
-        self.assertEqual(self.db.cursor().execute('SELECT title FROM podcasts LIMIT 1').fetchone()[0], None)
-        self.assertEqual(self.db.cursor().execute('SELECT last_status FROM podcasts LIMIT 1').fetchone()[0], 404)
+        self.assertEqual(1, self.db.cursor().execute('SELECT count(*) FROM podcasts').fetchone()[0])
+        self.assertEqual(None, self.db.cursor().execute('SELECT title FROM podcasts LIMIT 1').fetchone()[0])
+        self.assertEqual(404, self.db.cursor().execute('SELECT last_status FROM podcasts LIMIT 1').fetchone()[0])
     
     @responses.activate
     def test_remove_podcast(self):
         self.podcast_manager.cfg.podcasts = ['http://localhost/op1']
         responses.add(responses.GET, 'http://localhost/op1', body='<?xml version="1.1"?><!DOCTYPE _[<!ELEMENT _ EMPTY>]><_/>', status=200)
         self.podcast_manager.update_podcast_list(True)
-        self.assertEqual(self.db.cursor().execute('SELECT count(*) FROM podcasts').fetchone()[0], 1)
+        self.assertEqual(1, self.db.cursor().execute('SELECT count(*) FROM podcasts').fetchone()[0])
         self.podcast_manager.cfg.podcasts = []
         self.podcast_manager.update_podcast_list(True)
-        self.assertEqual(self.db.cursor().execute('SELECT count(*) FROM podcasts').fetchone()[0], 0)
+        self.assertEqual(0, self.db.cursor().execute('SELECT count(*) FROM podcasts').fetchone()[0])
 
     @responses.activate
     def test_image(self):
@@ -84,9 +84,9 @@ class TestCheckPodcasts(BaseTest):
             ''', status=200)
             responses.add(responses.GET, 'http://localhost/image.jpg', b'My image', status=200)
             self.podcast_manager.update_podcast_list(True)
-            self.assertEqual(self.db.cursor().execute('SELECT image_path FROM podcasts LIMIT 1').fetchone()[0], tempdir + '/image.jpg')
+            self.assertEqual(tempdir + '/image.jpg', self.db.cursor().execute('SELECT image_path FROM podcasts LIMIT 1').fetchone()[0])
             with open(tempdir + '/image.jpg', mode='rb') as f:
-                self.assertEqual(f.read(), b'My image')
+                self.assertEqual(b'My image', f.read())
         finally:
             os.remove(tempdir + '/image.jpg')
             os.rmdir(tempdir)
@@ -99,9 +99,9 @@ class TestCheckPodcasts(BaseTest):
                 <chan...
         ''', status=200)
         self.podcast_manager.update_podcast_list()
-        self.assertEqual(self.db.cursor().execute('SELECT count(*) FROM podcasts').fetchone()[0], 1)
-        self.assertEqual(self.db.cursor().execute('SELECT title FROM podcasts LIMIT 1').fetchone()[0], None)
-        self.assertNotEqual(self.db.cursor().execute('SELECT error FROM podcasts LIMIT 1').fetchone()[0], None)
+        self.assertEqual(1, self.db.cursor().execute('SELECT count(*) FROM podcasts').fetchone()[0])
+        self.assertEqual(None, self.db.cursor().execute('SELECT title FROM podcasts LIMIT 1').fetchone()[0])
+        self.assertNotEqual(None, self.db.cursor().execute('SELECT error FROM podcasts LIMIT 1').fetchone()[0])
 
 
 podcast1_xml = '''

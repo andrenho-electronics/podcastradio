@@ -12,10 +12,10 @@ class TestConfig(unittest.TestCase):
 
     def test_load_config(self):
         cfg = Config().read_config_file('tests/download.ini', False)
-        self.assertEqual(cfg.podcasts, ['http://localhost/op1'])
-        self.assertEqual(cfg.keep_episodes, 2)
-        self.assertEqual(cfg.download_path, 'download')
-        self.assertEqual(cfg.download_threads, 4)
+        self.assertEqual(['http://localhost/op1'], cfg.podcasts)
+        self.assertEqual(2, cfg.keep_episodes)
+        self.assertEqual('download', cfg.download_path)
+        self.assertEqual(4, cfg.download_threads)
 
     def test_corruped_ini(self):
         def fail_cfg():
