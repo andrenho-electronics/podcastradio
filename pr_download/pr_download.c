@@ -6,7 +6,9 @@
 #include "fs.h"
 
 int main() {
-    config_load();
+    if (!config_load())
+        return EXIT_FAILURE;
+
     db_init();
     fs_init();
 
