@@ -1,5 +1,7 @@
 #include "fs.h"
 
+#include <stdlib.h>
+
 void
 fs_init()
 {
@@ -13,7 +15,7 @@ fs_download_file(char* url, char* error_desc)
 }
 
 void
-remove_file(char* filename)
+fs_remove_file(char* filename)
 {
     (void) filename;
 }

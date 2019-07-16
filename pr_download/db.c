@@ -1,5 +1,12 @@
 #include "db.h"
 
+#include <stdlib.h>
+
+void
+db_init()
+{
+}
+
 char*
 db_reserve_next_file()
 {

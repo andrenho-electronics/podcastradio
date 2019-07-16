@@ -15,12 +15,12 @@ int main() {
         char* url = db_reserve_next_file();
         if (url) {
             char** error_desc = NULL;
-            char* filename = fs_download_file(url, &error_desc);
+            char* filename = fs_download_file(url, *error_desc);
             if (filename) {
                 db_mark_as_downloaded(url, filename);
                 free(filename);
             } else {
-                db_register_error(url, *error_desc); 
+                db_register_error(url, &error_desc); 
                 free(*error_desc);
             }
             free(url);

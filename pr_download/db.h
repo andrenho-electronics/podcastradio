@@ -1,6 +1,7 @@
 #ifndef DB_H_
 #define DB_H_
 
+void  db_init(void);
 char* db_reserve_next_file(void);
 void  db_mark_as_downloaded(char* url, char* filename);
 void  db_register_error(char* url, char** error_desc); 
