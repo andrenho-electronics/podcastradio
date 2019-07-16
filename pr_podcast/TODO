@@ -7,7 +7,7 @@
 - move initial SQL to a single location (ok)
 - move to a single ini (ok)
 - test and tests directory (ok)
-- move logging to syslog
+- move logging to syslog (ok)
 - invert tests orders
 - remove directories after test
 
