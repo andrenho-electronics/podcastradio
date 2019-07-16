@@ -1,4 +1,4 @@
-OBJ = pr_download.o
+OBJ = pr_download.o config.o db.o fs.o
 
 CFLAGS = -Wall -Wextra
 LIBS = 
