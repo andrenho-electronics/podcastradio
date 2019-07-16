@@ -20,7 +20,7 @@ db_mark_as_downloaded(char* url, char* filename)
 }
 
 void
-db_register_error(char* url, char** error_desc)
+db_register_error(char* url, char* error_desc)
 {
     (void) url; (void) error_desc;
 }
@@ -29,4 +29,10 @@ void
 db_mark_as_removed(char* filename)
 {
     (void) filename;
+}
+
+char*
+db_next_file_to_remove()
+{
+    return NULL;
 }
