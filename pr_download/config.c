@@ -1,9 +1,9 @@
 #include "config.h"
 
+#include <regex.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
-
-#include "toml.h"
 
 Config config = (Config) {
     .database_file = NULL,
@@ -19,12 +19,46 @@ config_load()
 bool
 config_load_file(char* filename)
 {
-    // reset config
-    free(config.database_file);
-    config.database_file = strdup("/var/db/podcastradio/podcastradio.db");
-    free(config.download_path);
-    config.download_path = strdup("/var/db/podcastradio/download");
+    bool ret = false;
 
+    free(config.database_file); config.database_file = NULL;
+    free(config.download_path); config.download_path = NULL;
+
+    // setup regexes
+    regex_t *section = NULL, 
+            *kv = NULL;
+    if(regcomp(section, "^\\s*\\[(.+?)\\]\\s*$", 0) != 0) {
+        perror("regcomp");
+        exit(1);
+    }
+    if(regcomp(kv, "^\\s*(.+?)\\s*=\\s*(.+?)\\s*$", 0) != 0) {
+        perror("regcomp");
+        exit(1);
+    }
+
+    // open file
+    FILE* fp = fopen(filename, "r");
+    if (!fp) {
+        perror("fopen");
+        goto end;
+    }
+    
+    // read line by line
+
+    // if values not found, setup defaults
+    if (!config.database_file)
+        config.database_file = strdup("/var/db/podcastradio/podcastradio.db");
+    if (!config.download_path)
+        config.download_path = strdup("/var/db/podcastradio/download");
+    
+    ret = true;
+end:
+    if (section) regfree(section);
+    if (kv) regfree(kv);
+    if (fp) fclose(fp);
+    return ret;
+
+    /*
     // open file
     FILE* fp = fopen(filename, "r");
     if (!fp) {
@@ -63,4 +97,5 @@ config_load_file(char* filename)
     toml_free(conf);
 
     return true;
+    */
 }
