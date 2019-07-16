@@ -5,8 +5,8 @@ LIBS = -fPIC -L/usr/local/lib `pkg-config --libs sqlite3 libcurl`
 
 # main executable
 
-pr_download: prdownload.o ${OBJ}
-	gcc -o $@ prdownload.o ${OBJ} ${CFLAGS} ${LIBS}
+pr_download: pr_download.o ${OBJ}
+	gcc -o $@ pr_download.o ${OBJ} ${CFLAGS} ${LIBS}
 
 # debugging version
 

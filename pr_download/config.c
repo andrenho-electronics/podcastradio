@@ -25,13 +25,12 @@ config_load_file(char* filename)
     free(config.download_path); config.download_path = NULL;
 
     // setup regexes
-    regex_t *section = NULL, 
-            *kv = NULL;
-    if(regcomp(section, "^\\s*\\[(.+?)\\]\\s*$", 0) != 0) {
+    regex_t section, kv;
+    if(regcomp(&section, "^\\s*\\[(.+?)\\]\\s*$", 0) != 0) {
         perror("regcomp");
         exit(1);
     }
-    if(regcomp(kv, "^\\s*(.+?)\\s*=\\s*(.+?)\\s*$", 0) != 0) {
+    if(regcomp(&kv, "^\\s*(.+?)\\s*=\\s*(.+?)\\s*$", 0) != 0) {
         perror("regcomp");
         exit(1);
     }
@@ -44,6 +43,11 @@ config_load_file(char* filename)
     }
     
     // read line by line
+    char* current_section = NULL;
+    char* line;
+    while (getline(&line, NULL, fp) != -1) {
+        
+    }
 
     // if values not found, setup defaults
     if (!config.database_file)
@@ -53,8 +57,6 @@ config_load_file(char* filename)
     
     ret = true;
 end:
-    if (section) regfree(section);
-    if (kv) regfree(kv);
     if (fp) fclose(fp);
     return ret;
 
