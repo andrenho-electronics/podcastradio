@@ -26,11 +26,11 @@ config_load_file(char* filename)
 
     // setup regexes
     regex_t section, kv;
-    if(regcomp(&section, "^\\s*\\[(.+?)\\]\\s*$", 0) != 0) {
+    if(regcomp(&section, "^\\s*\\[(.+?)\\]\\s*$", REG_EXTENDED) != 0) {
         perror("regcomp");
         exit(1);
     }
-    if(regcomp(&kv, "^\\s*(.+?)\\s*=\\s*(.+?)\\s*$", 0) != 0) {
+    if(regcomp(&kv, "^\\s*([^ ]+?)\\s*=\\s*([^ ]+?)\\s*", REG_EXTENDED | REG_NEWLINE) != 0) {
         perror("regcomp");
         exit(1);
     }
@@ -43,11 +43,24 @@ config_load_file(char* filename)
     }
     
     // read line by line
-    char* current_section = NULL;
-    char* line;
-    while (getline(&line, NULL, fp) != -1) {
-        
+    char current_section[50];
+    char* line = NULL;
+    size_t len = 0;
+    while (getline(&line, &len, fp) != -1) {
+        regmatch_t match[3];
+        if (regexec(&section, line, 3, match, 0) == 0) {
+            current_section[0] = '\0';
+            strncat(current_section, line + match[1].rm_so, match[1].rm_eo - match[1].rm_so);
+        } else if (regexec(&kv, line, 3, match, 0) == 0) {
+            if (strcmp(current_section, "config") == 0) {
+                if (strncmp("database_file", line + match[1].rm_so, match[1].rm_eo - match[1].rm_so) == 0)
+                    config.database_file = strndup(line + match[2].rm_so, match[2].rm_eo - match[2].rm_so);
+                else if (strncmp("download_path", line + match[1].rm_so, match[1].rm_eo - match[1].rm_so) == 0)
+                    config.download_path = strndup(line + match[2].rm_so, match[2].rm_eo - match[2].rm_so);
+            }
+        }
     }
+    free(line);
 
     // if values not found, setup defaults
     if (!config.database_file)
@@ -57,47 +70,15 @@ config_load_file(char* filename)
     
     ret = true;
 end:
+    regfree(&section);
+    regfree(&kv);
     if (fp) fclose(fp);
     return ret;
+}
 
-    /*
-    // open file
-    FILE* fp = fopen(filename, "r");
-    if (!fp) {
-        perror("fopen");
-        return false;
-    }
-
-    // parse file
-    char errbuf[200];
-    toml_table_t* conf = toml_parse_file(fp, errbuf, sizeof(errbuf));
-    fclose(fp);
-    if (!conf) {
-        fprintf(stderr, "ERROR: %s\n", errbuf);
-        return false;
-    }
-
-    // find config section
-    toml_table_t* config_section = toml_table_in(conf, "config");
-    if (!config_section)
-        return true;  // use defaults
-
-    // load keys
-    const char* database_file = toml_raw_in(config_section, "database_file");
-    if (database_file) {
-        free(config.database_file);
-        config.database_file = strdup(database_file);
-    }
-
-    const char* download_path = toml_raw_in(config_section, "download_path");
-    if (download_path) {
-        free(config.download_path);
-        config.download_path = strdup(download_path);
-    }
-
-    // free everything
-    toml_free(conf);
-
-    return true;
-    */
+void
+config_free()
+{
+    free(config.database_file);
+    free(config.download_path);
 }

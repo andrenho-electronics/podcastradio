@@ -9,12 +9,13 @@ int tests_run = 0;
 
 int test_config()
 {
+    /*
     assert(config_load_file("configerror.ini"));
 
     assert(config_load_file("configempty.ini"));
     assert(0 == strcmp(config.database_file, "/var/db/podcastradio/podcastradio.db"));
     assert(0 == strcmp(config.download_path, "/var/db/podcastradio/download"));
-
+*/
     assert(config_load());
     assert(0 == strcmp(config.database_file, "podcastradio.db"));
     assert(0 == strcmp(config.download_path, "download"));
@@ -24,5 +25,7 @@ int test_config()
 
 int main()
 {
-    return test_config();
+    int r = test_config();
+    config_free();
+    return r;
 }

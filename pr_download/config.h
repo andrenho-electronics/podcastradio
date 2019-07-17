@@ -12,5 +12,6 @@ extern Config config;
 
 bool config_load(void);
 bool config_load_file(char* filename);
+void config_free();
 
 #endif
