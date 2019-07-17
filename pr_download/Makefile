@@ -1,6 +1,6 @@
 OBJ = config.o db.o fs.o
 
-CFLAGS = -std=c11 -D_GNU_SOURCE -Wall -Wextra `pkg-config --cflags sqlite3 libcurl`
+CFLAGS = -std=c11 -D_GNU_SOURCE -Wall -Wextra `pkg-config --cflags sqlite3 libcurl` -fdiagnostics-color=always
 LIBS = -fPIC -L/usr/local/lib `pkg-config --libs sqlite3 libcurl`
 
 # main executable
