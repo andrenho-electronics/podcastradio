@@ -24,6 +24,9 @@ test_pr_download: tests.o ${OBJ}
 	gcc -o $@ tests.o ${OBJ} ${CFLAGS} ${LIBS}
 
 check: test_pr_download
+	./test_pr_download
+
+check-leaks: test_pr_download
 	valgrind --leak-check=full --show-leak-kinds=all ./test_pr_download
 
 # clean up

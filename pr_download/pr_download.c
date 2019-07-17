@@ -10,20 +10,20 @@ int main() {
     if (!config)
         return EXIT_FAILURE;
 
-    db_init(config->database_file);
+    Database* db = db_init(config->database_file);
     fs_init();
 
     for (;;) {
         // download files
-        char* url = db_reserve_next_file();
+        char* url = db_reserve_next_file(db);
         if (url) {
             char* error_desc = NULL;
             char* filename = fs_download_file(url, &error_desc);
             if (filename) {
-                db_mark_as_downloaded(url, filename);
+                db_mark_as_downloaded(db, url, filename);
                 free(filename);
             } else {
-                db_register_error(url, error_desc); 
+                db_register_error(db, url, error_desc); 
                 free(error_desc);
             }
             free(url);
@@ -31,9 +31,9 @@ int main() {
 
         // remove files
         char* filename = NULL;
-        while ((filename = db_next_file_to_remove())) {
+        while ((filename = db_next_file_to_remove(db))) {
             fs_remove_file(filename);
-            db_mark_as_removed(filename);
+            db_mark_as_removed(db, filename);
             free(filename);
         }
 
