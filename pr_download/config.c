@@ -5,24 +5,16 @@
 #include <stdio.h>
 #include <string.h>
 
-Config config = (Config) {
-    .database_file = NULL,
-    .download_path = NULL,
-};
-
-bool
+Config*
 config_load()
 {
     return config_load_file("podcastradio.ini");
 }
 
-bool
+Config*
 config_load_file(char* filename)
 {
-    bool ret = false;
-
-    free(config.database_file); config.database_file = NULL;
-    free(config.download_path); config.download_path = NULL;
+    Config* config = NULL;
 
     // setup regexes
     regex_t section, kv;
@@ -42,6 +34,9 @@ config_load_file(char* filename)
         goto end;
     }
     
+    // create config
+    config = calloc(1, sizeof(Config));
+
     // read line by line
     char current_section[50];
     char* line = NULL;
@@ -54,31 +49,31 @@ config_load_file(char* filename)
         } else if (regexec(&kv, line, 3, match, 0) == 0) {
             if (strcmp(current_section, "config") == 0) {
                 if (strncmp("database_file", line + match[1].rm_so, match[1].rm_eo - match[1].rm_so) == 0)
-                    config.database_file = strndup(line + match[2].rm_so, match[2].rm_eo - match[2].rm_so);
+                    config->database_file = strndup(line + match[2].rm_so, match[2].rm_eo - match[2].rm_so);
                 else if (strncmp("download_path", line + match[1].rm_so, match[1].rm_eo - match[1].rm_so) == 0)
-                    config.download_path = strndup(line + match[2].rm_so, match[2].rm_eo - match[2].rm_so);
+                    config->download_path = strndup(line + match[2].rm_so, match[2].rm_eo - match[2].rm_so);
             }
         }
     }
     free(line);
 
     // if values not found, setup defaults
-    if (!config.database_file)
-        config.database_file = strdup("/var/db/podcastradio/podcastradio.db");
-    if (!config.download_path)
-        config.download_path = strdup("/var/db/podcastradio/download");
+    if (!config->database_file)
+        config->database_file = strdup("/var/db/podcastradio/podcastradio.db");
+    if (!config->download_path)
+        config->download_path = strdup("/var/db/podcastradio/download");
     
-    ret = true;
 end:
     regfree(&section);
     regfree(&kv);
     if (fp) fclose(fp);
-    return ret;
+    return config;
 }
 
 void
-config_free()
+config_free(Config* config)
 {
-    free(config.database_file);
-    free(config.download_path);
+    free(config->database_file);
+    free(config->download_path);
+    free(config);
 }

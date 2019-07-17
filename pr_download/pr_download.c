@@ -6,10 +6,11 @@
 #include "fs.h"
 
 int main() {
-    if (!config_load())
+    Config* config = config_load();
+    if (!config)
         return EXIT_FAILURE;
 
-    db_init();
+    db_init(config->database_file);
     fs_init();
 
     for (;;) {

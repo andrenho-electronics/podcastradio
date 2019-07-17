@@ -3,7 +3,12 @@
 #include <stdlib.h>
 
 void
-db_init()
+db_init(const char* path)
+{
+}
+
+void
+db_close()
 {
 }
 
