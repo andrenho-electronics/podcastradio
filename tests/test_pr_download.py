@@ -11,14 +11,14 @@ class BaseTest(unittest.TestCase):
 
     def setUp(self):
         self.db = db.open_database(database_file=':memory:')
-        cfg = config.Config(
+        self.cfg = config.Config(
             download_path = 'tests/download'
         )
-        self.pd = PodcastDownloader(cfg, self.db)
+        self.pd = PodcastDownloader(self.cfg, self.db)
 
     def tearDown(self):
         self.db.close()
-        #os.rmdir('tests/download')
+        os.rmdir('tests/download')
 
 class TestDownloadFile(BaseTest):
 
