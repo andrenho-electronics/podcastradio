@@ -11,7 +11,7 @@ class PodcastDownloader:
     # INTERNET / FILESYSTEM
     #
 
-    def download_file(self, url):
+    def download_file(self, url, incomplete_download_filename=None):
         filename = str(uuid.uuid1())
         filepath = self.cfg.download_path + '/' + filename
         with requests.get(url, stream=True) as r:
