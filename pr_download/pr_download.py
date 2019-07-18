@@ -1,3 +1,4 @@
+import os
 import requests
 import uuid
 
@@ -12,9 +13,12 @@ class PodcastDownloader:
     #
 
     def download_file(self, url, incomplete_download_filename=None):
-        filename = str(uuid.uuid1())
+        filename = incomplete_download_filename or str(uuid.uuid1())
         filepath = self.cfg.download_path + '/' + filename
-        with requests.get(url, stream=True) as r:
+        headers = {}
+        if os.path.isfile(filepath):
+            headers['Range'] = 'bytes=%d-' % os.path.getsize(filepath)
+        with requests.get(url, headers=headers, stream=True) as r:
             r.raise_for_status()
             with open(filepath, 'wb') as f:
                 for chunk in r.iter_content(chunk_size=(1 * 1024 * 1024)):
