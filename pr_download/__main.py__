@@ -27,7 +27,7 @@ while True:
     url = pd.reserve_next_file()
     if url:
         try:
-            filename = pd.download_file(url)
+            filename = pd.download_file(url, pr.incomplete_download_filename(url))
             pd.mark_file_as_downloaded(url, filename)
         except e:
             pd.register_error(url, e)

@@ -12,10 +12,11 @@ class PodcastDownloader:
     #
 
     def download_file(self, url):
-        filename = self.cfg.download_path + '/' + str(uuid.uuid1()) # TODO - get extension
+        filename = str(uuid.uuid1())
+        filepath = self.cfg.download_path + '/' + filename
         with requests.get(url, stream=True) as r:
             r.raise_for_status()
-            with open(filename, 'wb') as f:
+            with open(filepath, 'wb') as f:
                 for chunk in r.iter_content(chunk_size=(1 * 1024 * 1024)):
                     if chunk:
                         f.write(chunk)
@@ -27,6 +28,9 @@ class PodcastDownloader:
     #
     # DATABASE
     #
+
+    def incomplete_download_filename(self, url):
+        pass
 
     def reserve_next_file(self):
         pass
