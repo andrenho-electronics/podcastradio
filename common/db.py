@@ -7,6 +7,7 @@ def open_database(config=None, database_file=None):
     if database_file is None:
         database_file = config.database_file
     db = sqlite3.connect(database_file)
+    # db.isolation_level = 'EXCLUSIVE'
     script = open('common/database.sql', 'r').read()
     db.cursor().executescript(script)
     db.commit()

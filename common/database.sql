@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS downloads (
   thread          INTEGER  DEFAULT NULL,
   episode_size    INTEGER  DEFAULT NULL,
   bytes_downd     INTEGER  DEFAULT 0,
+  filename        TEXT     DEFAULT NULL,
   last_status     INTEGER,
   FOREIGN KEY(url) REFERENCES episodes(episode_url)
 );

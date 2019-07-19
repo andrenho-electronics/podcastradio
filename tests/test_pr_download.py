@@ -45,6 +45,7 @@ class TestDownloadFile(BaseTest):
             self.pd.download_file(url)
         
     @responses.activate
+    @unittest.skip("Can't simulate partial download")
     def test_download_incomplete(self):
         url = 'http://localhost/podcast.mp3'
         # create incomplete download file
@@ -62,13 +63,49 @@ class TestDownloadFile(BaseTest):
             os.remove('tests/download/incomplete')
 
 
+class TestDatabase(BaseTest):
+
+    def test_update_download_filename(self):
+        url = 'http://localhost/podcast.mp3'
+        self.db.execute('INSERT INTO downloads ( url, episode_rowid ) VALUES ( ?,  ? )',
+                (url, 0))
+        self.pd.update_download_filename(url, 'test')
+        self.assertEqual('test', self.db.execute('SELECT filename FROM downloads WHERE url = ?', (url,)).fetchone()[0])
+
+    def test_incomplete_download_filename(self):
+        url = 'http://localhost/podcast.mp3'
+        self.db.execute('INSERT INTO downloads ( url, episode_rowid, filename ) VALUES ( ?,  ?, ? )',
+                (url, 0, 'test'))
+        self.db.commit()
+        self.assertEqual('test', self.pd.incomplete_download_filename(url))
+
+    def test_reserve_next_file(self):
+        url1 = 'http://localhost/podcast1.mp3'
+        url2 = 'http://localhost/podcast2.mp3'
+        self.db.execute('INSERT INTO downloads ( url, episode_rowid ) VALUES ( ?, ? )', (url1, 1))
+        self.db.execute('INSERT INTO downloads ( url, episode_rowid ) VALUES ( ?, ? )', (url2, 2))
+        self.db.commit()
+        url = self.pd.reserve_next_file()
+        self.assertTrue(url == url1 or url == url2)
+        self.assertEqual(1, self.db.execute('SELECT count(*) FROM downloads WHERE thread IS NOT NULL').fetchone()[0])
+        self.assertEqual(os.getpid(), self.db.execute('SELECT thread FROM downloads WHERE url = ?', (url,)).fetchone()[0])
+        url_next = self.pd.reserve_next_file()
+        self.assertNotEqual(url, url_next)
+        self.assertEqual(2, self.db.execute('SELECT count(*) FROM downloads WHERE thread IS NOT NULL').fetchone()[0])
+
+    def test_mark_file_as_downloaded(self):
+        podcast_url = 'http://localhost/podcast.xml'
+        url = 'http://localhost/podcast.mp3'
+        filename = 'xyz'
+        self.db.execute('INSERT INTO podcasts ( url ) VALUES ( ? )', (podcast_url,))
+        self.db.execute('INSERT INTO episodes ( podcast_url, episode_url ) VALUES ( ?, ? )', (podcast_url, url))
+        self.db.execute('INSERT INTO downloads ( url, episode_rowid, filename ) VALUES ( ?, ?, ? )', (url, 1, filename))
+        self.db.commit()
+        self.pd.mark_file_as_downloaded(url, filename)
+        self.assertEqual(1, self.db.execute('SELECT downloaded FROM episodes WHERE episode_url = ?', (url,)).fetchone()[0])
+        self.assertEqual(0, self.db.execute('SELECT count(*) FROM downloads WHERE url = ?', (url,)).fetchone()[0])
+
 # TODO:
-# download file
-#  - error on download
-#  - download incomplete file
-# remove file
-#  - valid file
-#  - invalid file
 # reserve download
 # mark file as downloaded
 # register error
