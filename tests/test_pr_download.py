@@ -102,12 +102,34 @@ class TestDatabase(BaseTest):
         self.db.execute('INSERT INTO downloads ( url, episode_rowid, filename ) VALUES ( ?, ?, ? )', (url, 1, filename))
         self.db.commit()
         self.pd.mark_file_as_downloaded(url, filename)
-        self.assertEqual(1, self.db.execute('SELECT downloaded FROM episodes WHERE episode_url = ?', (url,)).fetchone()[0])
+        row = self.db.execute('SELECT downloaded, last_status FROM episodes WHERE episode_url = ?', (url,)).fetchone()
+        self.assertEqual(1, row[0])
+        self.assertEqual(200, row[1])
         self.assertEqual(0, self.db.execute('SELECT count(*) FROM downloads WHERE url = ?', (url,)).fetchone()[0])
 
+    def test_register_error(self):
+        podcast_url = 'http://localhost/podcast.xml'
+        url = 'http://localhost/podcast.mp3'
+        self.db.execute('INSERT INTO podcasts ( url ) VALUES ( ? )', (podcast_url,))
+        self.db.execute('INSERT INTO episodes ( podcast_url, episode_url ) VALUES ( ?, ? )', (podcast_url, url))
+        self.db.execute('INSERT INTO downloads ( url, episode_rowid ) VALUES ( ?, ? )', (url, 1))
+        self.pd.register_error(url, Exception('Page not found'), 404)
+        row = self.db.execute('SELECT last_status, error FROM episodes WHERE episode_url = ?', (url,)).fetchone()
+        self.assertEqual(404, row[0])
+        self.assertEqual('Page not found', row[1])
+
+    def test_files_to_remove(self):
+        url1 = 'http://localhost/podcast1.mp3'
+        url2 = 'http://localhost/podcast2.mp3'
+        self.db.execute('INSERT INTO to_remove ( url ) VALUES ( ? )', (url1,))
+        self.db.execute('INSERT INTO to_remove ( url ) VALUES ( ? )', (url2,))
+        self.db.commit()
+        urls = self.pd.files_to_remove()
+        self.assertEqual(2, len(urls))
+        self.assertTrue(url1 in urls)
+        self.assertTrue(url2 in urls)
+
 # TODO:
-# reserve download
-# mark file as downloaded
 # register error
 # files to remove
 # mark file as removed

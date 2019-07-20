@@ -13,9 +13,11 @@ CREATE TABLE IF NOT EXISTS episodes (
   title         TEXT,
   date          INTEGER,
   length        TEXT,
-  nbytes        INTEGER,
+  nbytes        INTEGER   DEFAULT NULL,
   downloaded    BOOLEAN   DEFAULT 0,
   keep          BOOLEAN   DEFAULT 0,
+  last_status   INTEGER   DEFAULT NULL,
+  error         TEXT      DEFAULT NULL,
   PRIMARY KEY(podcast_url, episode_url),
   FOREIGN KEY(podcast_url) REFERENCES podcasts(url)
 );
@@ -29,7 +31,6 @@ CREATE TABLE IF NOT EXISTS downloads (
   episode_size    INTEGER  DEFAULT NULL,
   bytes_downd     INTEGER  DEFAULT 0,
   filename        TEXT     DEFAULT NULL,
-  last_status     INTEGER,
   FOREIGN KEY(url) REFERENCES episodes(episode_url)
 );
 

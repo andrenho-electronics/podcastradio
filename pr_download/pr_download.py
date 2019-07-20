@@ -53,15 +53,17 @@ class PodcastDownloader:
         return url
 
     def mark_file_as_downloaded(self, url, filename):
-        self.db.execute('UPDATE episodes SET downloaded = 1 WHERE episode_url = ?', (url,))
+        self.db.execute('UPDATE episodes SET downloaded = 1, last_status = ? WHERE episode_url = ?', (200, url))
         self.db.execute('DELETE FROM downloads WHERE url = ?', (url,))
         self.db.commit()
 
-    def register_error(self, url, exception):
-        pass
+    def register_error(self, url, exception, last_status=None):
+        self.db.execute('UPDATE episodes SET error = ?, last_status = ? WHERE episode_url = ?', 
+                (str(exception), last_status, url))
+        self.db.commit()
 
     def files_to_remove(self):
-        pass
+        return [f[0] for f in self.db.execute('SELECT url FROM to_remove')]
 
     def mark_file_as_removed(self, filename):
         pass
