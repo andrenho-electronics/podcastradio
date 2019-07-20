@@ -1,0 +1,4 @@
+#!/bin/sh
+
+rm podcastradio.db
+rm -rf download images

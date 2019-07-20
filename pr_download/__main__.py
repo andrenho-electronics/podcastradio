@@ -8,12 +8,12 @@ import os
 import time
 
 import common.config as config
+import common.db as db
 
 logging.basicConfig(level='INFO')
 if os.name == 'posix':
     root_logger = logging.getLogger()
-    root_logger.handlers = []
-    root_logger.addHandler(logging.handlers.SysLogHandler(address='/dev/log/'))
+    root_logger.addHandler(logging.handlers.SysLogHandler())
 
 cfg = config.Config().read_config_file('podcastradio.ini')
 db  = db.open_database(cfg)
@@ -27,9 +27,9 @@ while True:
     url = pd.reserve_next_file()
     if url:
         try:
-            filename = pd.download_file(url, pr.incomplete_download_filename(url))
+            filename = pd.download_file(url, pd.incomplete_download_filename(url))
             pd.mark_file_as_downloaded(url, filename)
-        except e:
+        except Exception as e:
             pd.register_error(url, e)
 
     # remove files
@@ -38,4 +38,5 @@ while True:
         pd.mark_file_as_removed(filename)
 
     logging.info('Waiting for next loop...')
-    time.sleep(120)
+    if url is None:
+        time.sleep(120)

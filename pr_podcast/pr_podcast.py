@@ -52,7 +52,7 @@ class PodcastManager:
                     self.__update_image(url, info)
                     self.__update_podcast_database(url, info)
             except Exception as e:
-                self.db.cursor().execute('UPDATE podcasts SET error = ? WHERE url = ?', (str(e), url))
+                self.db.execute('UPDATE podcasts SET error = ? WHERE url = ?', (str(e), url))
                 self.db.commit()
                 logging.warning(str(e))
                 if throw_exceptions:
@@ -60,7 +60,7 @@ class PodcastManager:
                 continue
 
     def mark_episodes_for_download(self):
-        for row in self.db.cursor().execute('SELECT url, keep_episodes FROM podcasts'):
+        for row in self.db.execute('SELECT url, keep_episodes FROM podcasts'):
             url = row[0]
             self.__remove_old_podcast_episodes(url, row[1])
             self.__download_new_podcast_episodes(url)
@@ -91,7 +91,7 @@ class PodcastManager:
 
     def __download_podcast_rss(self, url):
         response = requests.get(url)
-        self.db.cursor().execute('UPDATE podcasts SET last_status = ? WHERE url = ?', (response.status_code, url))
+        self.db.execute('UPDATE podcasts SET last_status = ? WHERE url = ?', (response.status_code, url))
         self.db.commit()
         response.raise_for_status()
         logging.info('Podcast XML file downloaded from URL ' + url)
@@ -123,7 +123,7 @@ class PodcastManager:
     def __update_image(self, url, info):
         current_image = None
         try:
-            current_image = self.db.cursor().execute('SELECT image_path FROM podcasts WHERE url = ?', (url,)).fetchone()[0]
+            current_image = self.db.execute('SELECT image_path FROM podcasts WHERE url = ?', (url,)).fetchone()[0]
         except:
             return
         if info.image_path != current_image:
@@ -141,13 +141,13 @@ class PodcastManager:
             logging.info('Podcast image file downloaded from URL ' + info.image_path)
 
     def __update_podcast_database(self, url, info):
-        self.db.cursor().execute('''
+        self.db.execute('''
             UPDATE podcasts
                SET title = ?,
                    image_path = ?
              WHERE url = ?''', (info.title, info.image_path, url))
         for ep in info.episodes:
-            self.db.cursor().execute('''
+            self.db.execute('''
                 INSERT OR IGNORE INTO episodes ( podcast_url, episode_url, title, date, length, nbytes )
                                 VALUES ( ?, ?, ?, ?, ?, ? )''',
                 (url, ep.url, ep.title, ep.date, ep.length, ep.nbytes))
@@ -159,7 +159,7 @@ class PodcastManager:
     #
 
     def __remove_old_podcast_episodes(self, url, keep):
-        self.db.cursor().execute('''
+        changed = self.db.execute('''
             INSERT OR IGNORE INTO to_remove ( url )
                            SELECT episode_url
                              FROM episodes
@@ -167,12 +167,13 @@ class PodcastManager:
                               AND keep = 0
                               AND downloaded = 1
                          ORDER BY date DESC
-                            LIMIT -1 OFFSET ?''', (url, keep))
+                            LIMIT -1 OFFSET ?''', (url, keep)).rowcount
         self.db.commit()
-        logging.info('Episodes marked to remove')
+        if changed > 0:
+            logging.info(str(changed) + ' episodes marked to remove')
 
     def __download_new_podcast_episodes(self, url):
-        self.db.cursor().execute('''
+        changed = self.db.execute('''
             INSERT OR IGNORE INTO downloads ( url, podcast_title, episode_title, episode_rowid )
                            SELECT episode_url, ptitle, etitle, erowid
                              FROM     (SELECT episode_url, p.title ptitle, e.title etitle, e.rowid erowid, downloaded
@@ -188,7 +189,9 @@ class PodcastManager:
                        INNER JOIN podcasts p ON p.url = e.podcast_url
                             WHERE e.podcast_url = ?
                               AND downloaded = 0
-                              AND keep = 1''', (url, self.cfg.keep_episodes, url))
+                              AND keep = 1''', (url, self.cfg.keep_episodes, url)).rowcount
+        if changed > 0:
+            logging.info(str(changed) + ' new episodes marked for download')
         self.db.commit()
 
 # vim: foldmethod=marker

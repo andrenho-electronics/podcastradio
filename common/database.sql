@@ -40,3 +40,8 @@ CREATE TABLE IF NOT EXISTS to_remove (
   FOREIGN KEY(url) REFERENCES episodes(episode_url)
 );
 
+CREATE TABLE IF NOT EXISTS player (
+  filename        TEXT    PRIMARY_KEY,
+  time            TEXT    DEFAULT "0:00",
+  playing         BOOLEAN DEFAULT false
+);

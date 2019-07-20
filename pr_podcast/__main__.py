@@ -10,8 +10,7 @@ import time
 logging.basicConfig(level='INFO')
 if os.name == 'posix':
     root_logger = logging.getLogger()
-    root_logger.handlers = []
-    root_logger.addHandler(logging.handlers.SysLogHandler(address='/dev/log/'))
+    root_logger.addHandler(logging.handlers.SysLogHandler())
 
 cfg = config.Config().read_config_file('podcastradio.ini')
 db  = db.open_database(cfg)
