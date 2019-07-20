@@ -102,9 +102,10 @@ class TestDatabase(BaseTest):
         self.db.execute('INSERT INTO downloads ( url, episode_rowid, filename ) VALUES ( ?, ?, ? )', (url, 1, filename))
         self.db.commit()
         self.pd.mark_file_as_downloaded(url, filename)
-        row = self.db.execute('SELECT downloaded, last_status FROM episodes WHERE episode_url = ?', (url,)).fetchone()
+        row = self.db.execute('SELECT downloaded, last_status, filename FROM episodes WHERE episode_url = ?', (url,)).fetchone()
         self.assertEqual(1, row[0])
         self.assertEqual(200, row[1])
+        self.assertEqual(filename, row[2])
         self.assertEqual(0, self.db.execute('SELECT count(*) FROM downloads WHERE url = ?', (url,)).fetchone()[0])
 
     def test_register_error(self):
@@ -129,8 +130,21 @@ class TestDatabase(BaseTest):
         self.assertTrue(url1 in urls)
         self.assertTrue(url2 in urls)
 
-# TODO:
-# register error
-# files to remove
-# mark file as removed
-# incomplete download_filename
+    def test_mark_file_as_removed(self):
+        podcast_url = 'http://localhost/podcast.xml'
+        url1 = 'http://localhost/podcast1.mp3'
+        url2 = 'http://localhost/podcast2.mp3'
+        filename = 'xyz'
+        self.db.execute('INSERT INTO podcasts ( url ) VALUES ( ? )', (podcast_url,))
+        self.db.execute('INSERT INTO episodes ( podcast_url, episode_url, filename ) VALUES ( ?, ?, ? )', 
+                (podcast_url, url1, filename))
+        self.db.execute('INSERT INTO to_remove ( url ) VALUES ( ? )', (url1,))
+        self.db.execute('INSERT INTO to_remove ( url ) VALUES ( ? )', (url2,))
+        self.db.commit()
+        self.pd.mark_file_as_removed(filename)
+        self.assertEqual(1, self.db.execute('SELECT count(*) FROM to_remove').fetchone()[0])
+        self.assertEqual(url2, self.db.execute('SELECT url FROM to_remove').fetchone()[0])
+        row = self.db.execute('SELECT downloaded, last_status, filename FROM episodes WHERE episode_url = ?', (url1,)).fetchone()
+        self.assertEqual(0, row[0])
+        self.assertEqual(None, row[1])
+        self.assertEqual(None, row[2])

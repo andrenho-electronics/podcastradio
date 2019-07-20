@@ -53,7 +53,12 @@ class PodcastDownloader:
         return url
 
     def mark_file_as_downloaded(self, url, filename):
-        self.db.execute('UPDATE episodes SET downloaded = 1, last_status = ? WHERE episode_url = ?', (200, url))
+        self.db.execute('''
+            UPDATE episodes 
+               SET downloaded = 1
+                 , last_status = ?
+                 , filename = ? 
+             WHERE episode_url = ?''', (200, filename, url))
         self.db.execute('DELETE FROM downloads WHERE url = ?', (url,))
         self.db.commit()
 
@@ -66,4 +71,14 @@ class PodcastDownloader:
         return [f[0] for f in self.db.execute('SELECT url FROM to_remove')]
 
     def mark_file_as_removed(self, filename):
-        pass
+        self.db.execute('''DELETE
+                             FROM to_remove
+                            WHERE url IN (SELECT episode_url
+                                            FROM episodes 
+                                           WHERE filename = ?)''', (filename,))
+        self.db.execute('''UPDATE episodes
+                              SET downloaded = 0
+                                , last_status = NULL
+                                , filename = NULL
+                            WHERE filename = ?''', (filename,))
+        self.db.commit()

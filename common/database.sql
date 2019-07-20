@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS episodes (
   title         TEXT,
   date          INTEGER,
   length        TEXT,
+  filename      TEXT      DEFAULT NULL,
   nbytes        INTEGER   DEFAULT NULL,
   downloaded    BOOLEAN   DEFAULT 0,
   keep          BOOLEAN   DEFAULT 0,
