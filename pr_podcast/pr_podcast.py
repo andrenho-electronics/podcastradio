@@ -174,9 +174,9 @@ class PodcastManager:
 
     def __download_new_podcast_episodes(self, url):
         changed = self.db.execute('''
-            INSERT OR IGNORE INTO downloads ( url, podcast_title, episode_title, episode_rowid )
-                           SELECT episode_url, ptitle, etitle, erowid
-                             FROM     (SELECT episode_url, p.title ptitle, e.title etitle, e.rowid erowid, downloaded
+            INSERT OR IGNORE INTO downloads ( url, podcast_title, episode_title )
+                           SELECT episode_url, ptitle, etitle
+                             FROM     (SELECT episode_url, p.title ptitle, e.title etitle, downloaded
                                          FROM episodes e
                                    INNER JOIN podcasts p ON p.url = e.podcast_url
                                         WHERE e.podcast_url = ?
@@ -184,7 +184,7 @@ class PodcastManager:
                                         LIMIT ?)
                             WHERE downloaded = 0
                             UNION
-                           SELECT episode_url, p.title ptitle, e.title etitle, e.rowid erowid
+                           SELECT episode_url, p.title ptitle, e.title etitle
                              FROM episodes e
                        INNER JOIN podcasts p ON p.url = e.podcast_url
                             WHERE e.podcast_url = ?

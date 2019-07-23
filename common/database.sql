@@ -25,7 +25,6 @@ CREATE TABLE IF NOT EXISTS episodes (
 
 CREATE TABLE IF NOT EXISTS downloads (
   url             TEXT     PRIMARY KEY,
-  episode_rowid   INTEGER  UNIQUE,
   podcast_title   TEXT,
   episode_title   TEXT,
   thread          INTEGER  DEFAULT NULL,
@@ -40,8 +39,11 @@ CREATE TABLE IF NOT EXISTS to_remove (
   FOREIGN KEY(url) REFERENCES episodes(episode_url)
 );
 
-CREATE TABLE IF NOT EXISTS player (
-  filename        TEXT    PRIMARY_KEY,
-  time            TEXT    DEFAULT "0:00",
-  playing         BOOLEAN DEFAULT false
+CREATE TABLE IF NOT EXISTS playlist (
+  filename  TEXT    PRIMARY KEY,
+  time      NUMBER  DEFAULT 0,
+  length    NUMBER,
+  title     TEXT    DEFAULT NULL,
+  image     TEXT    DEFAULT NULL,
+  playing   BOOLEAN DEFAULT false
 );

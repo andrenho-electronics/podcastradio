@@ -67,23 +67,22 @@ class TestDatabase(BaseTest):
 
     def test_update_download_filename(self):
         url = 'http://localhost/podcast.mp3'
-        self.db.execute('INSERT INTO downloads ( url, episode_rowid ) VALUES ( ?,  ? )',
-                (url, 0))
+        self.db.execute('INSERT INTO downloads ( url ) VALUES ( ? )', (url,))
         self.pd.update_download_filename(url, 'test')
         self.assertEqual('test', self.db.execute('SELECT filename FROM downloads WHERE url = ?', (url,)).fetchone()[0])
 
     def test_incomplete_download_filename(self):
         url = 'http://localhost/podcast.mp3'
-        self.db.execute('INSERT INTO downloads ( url, episode_rowid, filename ) VALUES ( ?,  ?, ? )',
-                (url, 0, 'test'))
+        self.db.execute('INSERT INTO downloads ( url, filename ) VALUES ( ?, ? )',
+                (url, 'test'))
         self.db.commit()
         self.assertEqual('test', self.pd.incomplete_download_filename(url))
 
     def test_reserve_next_file(self):
         url1 = 'http://localhost/podcast1.mp3'
         url2 = 'http://localhost/podcast2.mp3'
-        self.db.execute('INSERT INTO downloads ( url, episode_rowid ) VALUES ( ?, ? )', (url1, 1))
-        self.db.execute('INSERT INTO downloads ( url, episode_rowid ) VALUES ( ?, ? )', (url2, 2))
+        self.db.execute('INSERT INTO downloads ( url ) VALUES ( ? )', (url1, ))
+        self.db.execute('INSERT INTO downloads ( url ) VALUES ( ? )', (url2, ))
         self.db.commit()
         url = self.pd.reserve_next_file()
         self.assertTrue(url == url1 or url == url2)
@@ -99,7 +98,7 @@ class TestDatabase(BaseTest):
         filename = 'xyz'
         self.db.execute('INSERT INTO podcasts ( url ) VALUES ( ? )', (podcast_url,))
         self.db.execute('INSERT INTO episodes ( podcast_url, episode_url ) VALUES ( ?, ? )', (podcast_url, url))
-        self.db.execute('INSERT INTO downloads ( url, episode_rowid, filename ) VALUES ( ?, ?, ? )', (url, 1, filename))
+        self.db.execute('INSERT INTO downloads ( url, filename ) VALUES ( ?, ? )', (url, filename))
         self.db.commit()
         self.pd.mark_file_as_downloaded(url, filename)
         row = self.db.execute('SELECT downloaded, last_status, filename FROM episodes WHERE episode_url = ?', (url,)).fetchone()
@@ -113,7 +112,7 @@ class TestDatabase(BaseTest):
         url = 'http://localhost/podcast.mp3'
         self.db.execute('INSERT INTO podcasts ( url ) VALUES ( ? )', (podcast_url,))
         self.db.execute('INSERT INTO episodes ( podcast_url, episode_url ) VALUES ( ?, ? )', (podcast_url, url))
-        self.db.execute('INSERT INTO downloads ( url, episode_rowid ) VALUES ( ?, ? )', (url, 1))
+        self.db.execute('INSERT INTO downloads ( url ) VALUES ( ? )', (url,))
         self.pd.register_error(url, Exception('Page not found'), 404)
         row = self.db.execute('SELECT last_status, error FROM episodes WHERE episode_url = ?', (url,)).fetchone()
         self.assertEqual(404, row[0])
