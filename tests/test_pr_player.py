@@ -13,3 +13,18 @@ class BaseTest(unittest.TestCase):
     def tearDown(self):
         self.db.close()
 
+
+
+# TODO - test list
+#  - mock vlc
+#  - 1 song playlist
+#    - play/pause
+#    - song over (without removal)
+#    - song over (with removal)
+#  - 3 song playlist
+#    - play/pause
+#    - song over (without removal)
+#    - song over (with removal)
+#  - exceptions
+#    - play an empty playlist
+#    - start playing in the middle of mp3
