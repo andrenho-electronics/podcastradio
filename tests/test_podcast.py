@@ -1,7 +1,7 @@
 import responses
 import unittest
 
-from podcastradio import PodcastRadio
+from podcastradio.podcastradio import PodcastRadio
 
 class TestPodcast(unittest.TestCase):
 
@@ -125,9 +125,9 @@ class TestCheckEpisodes(BaseTest):
         self.podcast_manager.update_podcast_list(True)
         self.assertEqual(2, self.db.cursor().execute('SELECT count(*) FROM episodes').fetchone()[0])
         podcast_url, title, date, length, nbytes, downloaded, keep = \
-            self.db.cursor().execute("""SELECT podcast_url, title, date, length, nbytes, downloaded, keep 
+            self.db.cursor().execute('''SELECT podcast_url, title, date, length, nbytes, downloaded, keep 
                                           FROM episodes 
-                                         WHERE episode_url='https://localhost/episode1.mp3'""").fetchone()
+                                         WHERE episode_url='https://localhost/episode1.mp3'''').fetchone()
         self.assertEqual('http://localhost/op1', podcast_url)
         self.assertEqual('Episode 1', title)
         self.assertTrue(date > 0)
