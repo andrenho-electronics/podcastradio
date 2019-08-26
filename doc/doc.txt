@@ -1,0 +1,45 @@
+BUTTONS
+-------
+
+Volume up/down - always change volume
+Volume switch - always play/pause
+Menu - always go to next menu
+Prev/Next - (on hold) change episode
+
+Selector up/down - select podcast, episode ou config
+Selector switch - activate selected option
+
+PROGRESSION
+-----------
+
+.-> Player -> Podcasts -> Playlist -> Config -.
+|                                             |
+'-<-----------------------------------------<-'
+
+Player
+------
+  Selector up/down - move forward / back
+  Selector (hold) - remove episode from playlist
+
+Podcasts
+--------
+  Selector - go to episodes
+  Selector (hold) - podcast options (unsubscribe)
+
+Playlist
+--------
+  Selector - add episode to playlist (add next / last)
+  Selector (hold) - episode options (remove from playlist, archive)
+
+Config (?)
+----------
+  - Seconds forward/backward
+  - Episodes to download
+
+
+ALWAYS IN BACKGROUND
+--------------------
+  - Get keypresses
+  - Check for new podcasts
+  - Check for new episodes
+  - Download new episodes
