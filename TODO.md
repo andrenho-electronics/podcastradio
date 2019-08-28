@@ -1,0 +1,61 @@
+Podcasts:
+- Check podcast file list
+  - Add new podcast
+  - No changes
+  - Remove podcast
+    - On remove podcast, remove all downloaded episodes
+- Check for podcasts
+  - Valid XML
+    - Empty RSS file
+    - Single RSS
+      - Data: title, image, last episode?, last updated
+    - Multiple RSSs
+  - Failed connection / 404
+  - Invalid XML
+- Check for episodes
+  - Valid XML
+    - No episodes
+    - Single episodes
+      - Load data: URL, title, publication date, duration
+      - Missing fields
+    - Multiple episodes
+    - Same episodes as previous
+  - Broken XML
+  - Archive episode
+- Select episodes for download
+  - Download X episodes
+    - Second call to download episodes, no new episodes
+    - Second call to download episodes, with new episodes
+  - Download X episodes, but with kept episodes
+    - Second call to download episodes, no new episodes
+    - Second call to download episodes, with new episodes
+  - Download X episodes, but with archive episodes
+    - Second call to download episodes, no new episodes
+    - Second call to download episodes, with new episodes
+- Download episodes
+  - Successful download
+  - Failed connection / 404
+  - Connection cut in the middle
+  - New download, file already downloaded
+  - Partial download
+  - Multiple download threads
+- Player
+  - Play / pause
+  - Refer to playlist when finished playing
+- Playlist
+  - Add to playlist
+  - Remove from playlist manually
+  - Remove from playlist after finished playing
+  - Auto add to playlist
+  - Play next on finished playing
+  - Stop playing on finished playlist
+  - Play next/previous manually
+  - Start playing another file manually
+- Config
+  - Change configuration
+  - Wifi
+    - Show networks and power
+    - Choose a new wifi network
+  - Free disk space
+- Keypresses
+  - Deal with keypresses

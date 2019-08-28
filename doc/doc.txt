@@ -12,9 +12,9 @@ Selector switch - activate selected option
 PROGRESSION
 -----------
 
-.-> Player -> Podcasts -> Playlist -> Config -.
-|                                             |
-'-<-----------------------------------------<-'
+.-> Player -> Podcasts -> Playlist -> Downloads -> Config -.
+|                                                          |
+'-<------------------------------------------------------<-'
 
 Player
 ------
@@ -24,18 +24,27 @@ Player
 Podcasts
 --------
   Selector - go to episodes
-  Selector (hold) - podcast options (unsubscribe)
+  Selector (hold) - podcast options (unsubscribe, auto add to playlist)
+
+Episodes
+--------
+  Selector - add episode to playlist (add next / last)
+  Selector (hold) - episode options (archive)
 
 Playlist
 --------
-  Selector - add episode to playlist (add next / last)
-  Selector (hold) - episode options (remove from playlist, archive)
+  Selector - play this episode now
+  Selector (hold) - options (remove from playlist, select episode in order to move it)
+
+Downloads
+---------
 
 Config (?)
 ----------
   - Seconds forward/backward
   - Episodes to download
-
+  - Select wifi network
+  - Show free disk space
 
 ALWAYS IN BACKGROUND
 --------------------
