@@ -14,4 +14,8 @@ class Podcast(Base):
 
     @staticmethod
     def update_from_config_file(session):
-        raise NotImplementedError()
+        existing_podcasts = session.query(Podcast).all()
+        found_podcasts = Podcast.load_config_file(CONFIG_FILENAME)
+        for p in found_podcasts:
+            if p not in existing_podcasts:
+                existing_podcasts.add(p)
