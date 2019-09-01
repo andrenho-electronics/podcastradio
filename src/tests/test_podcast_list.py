@@ -7,6 +7,10 @@ from tests.setup import session_base
 class TestPodcastList(unittest.TestCase):
 
     pod1 = 'localhost:8029/pod1'
+
+    # TODO - test config filename
+
+    # TODO - test config file
     
     def test_new_podcast(self):
         Session = session_base(True)
